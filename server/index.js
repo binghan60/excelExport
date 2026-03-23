@@ -9,6 +9,7 @@ import inventoryRouter from './routes/inventory.js'
 import exportRouter    from './routes/export.js'
 
 const app = express()
+console.log(process.env.CORS_ORIGIN)
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }))
 app.use(express.json())
 
