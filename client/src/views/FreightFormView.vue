@@ -1,0 +1,209 @@
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { api } from '../api/index.js'
+import { useRentalsStore } from '../stores/rentals.js'
+import MonthPicker from '../components/MonthPicker.vue'
+import DatePicker from '../components/DatePicker.vue'
+import NumberInput from '../components/base/NumberInput.vue'
+import AppInput from '../components/base/AppInput.vue'
+
+const router = useRouter()
+const route = useRoute()
+const store = useRentalsStore()
+
+const saving = ref(false)
+const errorMsg = ref('')
+const successMsg = ref('')
+
+const todayStr = new Date().toISOString().slice(0, 10)
+
+const form = ref({
+  client_name: '',
+  year_month: '',
+  rows: Array.from({ length: 10 }, () => ({
+    date: todayStr, route_from: '', route_to: '', cargo: '', amount: '', notes: '',
+  })),
+})
+
+const editId = computed(() => route.params.id ? Number(route.params.id) : null)
+const isEdit = computed(() => !!editId.value)
+
+onMounted(async () => {
+  const now = new Date()
+  form.value.year_month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+  if (isEdit.value) {
+    const data = await api.getFreight(editId.value)
+    form.value.client_name = data.client_name
+    form.value.year_month = data.year_month
+    data.rows.forEach((r, i) => {
+      if (i < 10) form.value.rows[i] = {
+        date: r.date || '',
+        route_from: r.route_from || '',
+        route_to: r.route_to || '',
+        cargo: r.cargo || '',
+        amount: r.amount ?? '',
+        notes: r.notes || '',
+      }
+    })
+  }
+})
+
+const subtotal = computed(() => form.value.rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0))
+const tax = computed(() => Math.round(subtotal.value * 0.05))
+const total = computed(() => subtotal.value + tax.value)
+
+function fmt(num) { return num.toLocaleString() }
+
+async function save() {
+  errorMsg.value = ''
+  if (!form.value.client_name.trim()) { errorMsg.value = '請填寫客戶名稱'; return }
+  if (!form.value.year_month) { errorMsg.value = '請填寫年月'; return }
+
+  saving.value = true
+  try {
+    const payload = {
+      ...form.value,
+      rows: form.value.rows
+        .filter(r => r.date || r.route_from || r.route_to || r.amount)
+        .map(r => ({ ...r, amount: r.amount !== '' ? Number(r.amount) : null })),
+    }
+    if (isEdit.value) {
+      await store.updateFreight(editId.value, payload)
+    } else {
+      await store.createFreight(payload)
+    }
+    successMsg.value = '單據已儲存'
+    setTimeout(() => router.push('/freights'), 1000)
+  } catch (e) {
+    errorMsg.value = e.message
+  } finally {
+    saving.value = false
+  }
+}
+
+</script>
+
+<template>
+  <div class="space-y-6 pb-20 animate-in fade-in duration-500">
+    <!-- 頂部操作列 -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <button
+          @click="router.push('/freights')"
+          class="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-300/60 dark:hover:border-amber-700/60 transition-all duration-300 ease-out active:scale-[0.95] shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div class="space-y-1">
+          <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{{ isEdit ? '修改運費請款' : '登錄新運費單' }}</h1>
+          <p class="text-sm font-medium text-slate-400 dark:text-slate-500">運費請款明細資料輸入</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button
+          class="h-10 px-6 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold rounded-xl hover:bg-amber-600 dark:hover:bg-amber-500 dark:hover:text-white transition-all duration-300 ease-out active:scale-[0.98] disabled:opacity-50 text-sm shadow-[0_1px_4px_0_rgba(0,0,0,0.15)] hover:shadow-[0_2px_10px_0_rgba(217,119,6,0.3)]"
+          :disabled="saving"
+          @click="save"
+        >
+          {{ saving ? '正在儲存…' : '儲存單據' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 訊息提示 -->
+    <div v-if="errorMsg" class="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-100 dark:border-red-900 font-semibold flex items-center gap-3 text-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ errorMsg }}
+    </div>
+    <div v-if="successMsg" class="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900 font-semibold flex items-center gap-3 text-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      {{ successMsg }}
+    </div>
+
+    <!-- 基本資料 -->
+    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)] transition-all duration-300">
+      <div class="px-6 py-4 border-b border-slate-100/80 dark:border-slate-700/60">
+        <h3 class="text-base font-semibold text-slate-700 dark:text-slate-200">基本資料</h3>
+      </div>
+      <div class="p-4 md:p-6 flex flex-wrap gap-4 md:gap-6">
+        <div class="space-y-1.5 w-full md:w-80">
+          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶名稱 *</label>
+          <AppInput v-model="form.client_name" variant="amber" placeholder="輸入請款廠商名稱" />
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">請款年月 *</label>
+          <MonthPicker v-model="form.year_month" variant="amber" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 明細列表 -->
+    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)] transition-all duration-300">
+      <div class="px-6 py-4 border-b border-slate-100/80 dark:border-slate-700/60 flex items-center justify-between">
+        <h3 class="text-base font-semibold text-slate-700 dark:text-slate-200">運費明細</h3>
+        <span class="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded border border-amber-100 dark:border-amber-900">共 10 行</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse min-w-260">
+          <thead>
+            <tr class="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100/80 dark:border-slate-700/60">
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center w-12">#</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide w-44 whitespace-nowrap">運輸日期</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">起點</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">迄點</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">載運設備／品項</th>
+              <th class="px-4 py-3 text-xs font-semibold text-amber-500 dark:text-amber-400 uppercase tracking-wide text-right pr-6 w-40 whitespace-nowrap">金額（未稅）</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">備註</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50 dark:divide-slate-800">
+            <tr v-for="(row, i) in form.rows" :key="i" class="hover:bg-amber-50/20 dark:hover:bg-amber-950/10 transition-colors">
+              <td class="px-4 py-3 text-center text-slate-300 dark:text-slate-600 font-semibold text-xs">{{ i + 1 }}</td>
+              <td class="px-4 py-3">
+                <DatePicker v-model="row.date" variant="amber" placeholder="選擇日期" />
+              </td>
+              <td class="px-4 py-3">
+                <AppInput v-model="row.route_from" variant="amber" placeholder="新竹廠" />
+              </td>
+              <td class="px-4 py-3">
+                <AppInput v-model="row.route_to" variant="amber" placeholder="台中工地" />
+              </td>
+              <td class="px-4 py-3">
+                <AppInput v-model="row.cargo" variant="amber" placeholder="土桶 × 5" />
+              </td>
+              <td class="px-4 py-3">
+                <NumberInput v-model="row.amount" variant="amber" align="right" :step="100" />
+              </td>
+              <td class="px-4 py-3">
+                <AppInput v-model="row.notes" variant="amber" placeholder="備註..." />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 結算 -->
+      <div class="p-8 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-end gap-3 border-t border-slate-100 dark:border-slate-700">
+        <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
+          <span class="text-xs font-semibold uppercase tracking-wide">運費小計（未稅）</span>
+          <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(subtotal) }} <small class="text-xs font-normal">元</small></span>
+        </div>
+        <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
+          <span class="text-xs font-semibold uppercase tracking-wide">營業稅額（5%）</span>
+          <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(tax) }} <small class="text-xs font-normal">元</small></span>
+        </div>
+        <div class="w-48 h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
+        <div class="flex items-center gap-12">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">含稅總計</span>
+          </div>
+          <span class="text-3xl font-bold text-slate-900 dark:text-slate-100 font-mono-num w-32 text-right">{{ fmt(total) }} <small class="text-sm font-semibold opacity-60">元</small></span>
+        </div>
+      </div>
+    </section>
+  </div>
+</template>
