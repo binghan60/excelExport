@@ -5,7 +5,7 @@ const props = defineProps({
   startDate: { type: String, default: '' },
   endDate:   { type: String, default: '' },
   block:     { type: Boolean, default: false },
-  variant:   { type: String, default: 'blue' },  // blue | amber
+  variant:   { type: String, default: 'blue' },  // blue | amber | indigo
 })
 const emit = defineEmits(['update:startDate', 'update:endDate'])
 
@@ -176,7 +176,7 @@ function clear() {
   border: 1px solid #e2e8f0; border-radius: 8px;
   background: #f8fafc;
   padding: 4px 10px; cursor: pointer;
-  font-size: 13px; font-weight: 500; user-select: none; white-space: nowrap;
+  font-size: 14px; font-weight: 500; user-select: none; white-space: nowrap;
   transition: border-color 0.15s, background 0.15s; height: 36px; box-sizing: border-box;
 }
 
@@ -194,6 +194,12 @@ function clear() {
 .drp-trigger--amber:hover .seg, .drp-trigger--amber.drp-open .seg { color: #92400e; }
 .drp-trigger--amber:hover .arrow, .drp-trigger--amber.drp-open .arrow { color: #fcd34d; }
 .drp-trigger--amber .seg.seg-active { color: #d97706; font-weight: bold; }
+
+/* Indigo */
+.drp-trigger--indigo:hover, .drp-trigger--indigo.drp-open { background: #f5f3ff; border-color: #6366f1; }
+.drp-trigger--indigo:hover .seg, .drp-trigger--indigo.drp-open .seg { color: #3730a3; }
+.drp-trigger--indigo:hover .arrow, .drp-trigger--indigo.drp-open .arrow { color: #c7d2fe; }
+.drp-trigger--indigo .seg.seg-active { color: #4f46e5; font-weight: bold; }
 
 .drp-backdrop { position: fixed; inset: 0; z-index: 999; }
 
@@ -273,6 +279,12 @@ function clear() {
 :global(.dark .drp-trigger--amber:hover .seg),
 :global(.dark .drp-trigger--amber.drp-open .seg) { color: #fbbf24; }
 :global(.dark .drp-trigger--amber .seg.seg-active) { color: #fcd34d; }
+
+:global(.dark .drp-trigger--indigo:hover),
+:global(.dark .drp-trigger--indigo.drp-open) { background: #1e1b4b; border-color: #6366f1; }
+:global(.dark .drp-trigger--indigo:hover .seg),
+:global(.dark .drp-trigger--indigo.drp-open .seg) { color: #c7d2fe; }
+:global(.dark .drp-trigger--indigo .seg.seg-active) { color: #818cf8; }
 
 :global(.dark .drp-panel) { background: #1e293b; border-color: #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
 :global(.dark .drp-hint) { background: #1e3a5f; color: #60a5fa; }

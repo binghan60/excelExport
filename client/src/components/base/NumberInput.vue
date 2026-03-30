@@ -38,14 +38,15 @@ function add(delta) {
   height: 36px; border-radius: 8px; overflow: hidden;
   border: 1px solid #e2e8f0; background: #f8fafc;
   transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
 }
 .ni--blue:focus-within  { border-color: #3b82f6; background: #eff6ff; }
 .ni--amber:focus-within { border-color: #f59e0b; background: #fffbeb; }
 
 .ni-btn {
-  width: 30px; flex-shrink: 0;
+  width: 28px; flex-shrink: 0;
   border: none; background: transparent;
-  font-size: 16px; line-height: 1; cursor: pointer;
+  font-size: 14px; line-height: 1; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.1s, color 0.1s;
   user-select: none;
@@ -69,7 +70,7 @@ function add(delta) {
 
 .ni-input {
   flex: 1; min-width: 0; border: none; background: transparent;
-  outline: none; font-size: 13px; font-weight: 600; padding: 0 4px;
+  outline: none; font-size: 14px; font-weight: 600; padding: 0 1px;
   color: #334155;
   /* 隱藏原生 spinner */
   -moz-appearance: textfield;

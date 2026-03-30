@@ -5,6 +5,7 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   variant:    { type: String, default: 'blue' },    // blue | amber
   transparent: { type: Boolean, default: false },   // SummaryView 用
+  dense:       { type: Boolean, default: false },   // 36px 緊湊樣式
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -56,7 +57,7 @@ function isSelected(month) {
       :class="[
         transparent ? 'mp-trigger--transparent' : 'mp-trigger--full',
         variant === 'amber' ? 'mp-accent--amber' : 'mp-accent--blue',
-        { 'mp-open': show }
+        { 'mp-open': show, 'mp--dense': dense }
       ]"
       @click="open"
     >
@@ -102,6 +103,7 @@ function isSelected(month) {
   background: #f8fafc; color: #475569;
   font-size: 14px; width: 100%; box-sizing: border-box;
 }
+.mp--dense { height: 36px; padding: 0 10px; }
 
 .mp-trigger--transparent {
   background: transparent; border: none; padding: 0; font-size: 16px;

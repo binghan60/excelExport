@@ -150,7 +150,7 @@ function clear() {
   height: 36px; padding: 0 10px;
   border: 1px solid #e2e8f0; border-radius: 8px;
   background: #f8fafc;
-  cursor: pointer; user-select: none; font-size: 13px; font-weight: 500;
+  cursor: pointer; user-select: none; font-size: 14px; font-weight: 500;
   transition: border-color 0.15s, background 0.15s; box-sizing: border-box; width: 100%;
 }
 .dp-value { color: #334155; }

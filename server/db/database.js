@@ -25,20 +25,21 @@ withId(inventoryLogSchema)
 
 // ── RentalInvoice（含 rows 嵌入）────────────────────────
 const rentalRowSchema = new Schema({
-  row_order:     { type: Number, default: 0 },
-  is_continued:  { type: Boolean, default: false },
-  delivery_date: String,
-  return_date:   String,
-  quantity:      Number,
-  daily_rate:    Number,
-  start_date:    String,
-  end_date:      String,
-  days:          Number,
-  notes:         String,
+  row_order:         { type: Number, default: 0 },
+  equipment_type_id: { type: Schema.Types.ObjectId, ref: 'EquipmentType' },
+  is_continued:      { type: Boolean, default: false },
+  delivery_date:     String,
+  return_date:       String,
+  quantity:          Number,
+  daily_rate:        Number,
+  start_date:        String,
+  end_date:          String,
+  days:              Number,
+  notes:             String,
 }, { _id: false })
 
 const rentalInvoiceSchema = new Schema({
-  equipment_type_id: { type: Schema.Types.ObjectId, ref: 'EquipmentType', required: true },
+  equipment_type_id: { type: Schema.Types.ObjectId, ref: 'EquipmentType' }, // Optional for legacy
   client_name:       { type: String, required: true },
   vendor:            String,
   site_name:         String,

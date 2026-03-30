@@ -8,10 +8,17 @@ router.get('/', async (_req, res) => {
   try {
     const types = await EquipmentType.find().sort({ _id: 1 })
 
+    const today = new Date().toISOString().slice(0, 10)
     const rentedAgg = await RentalInvoice.aggregate([
       { $unwind: '$rows' },
-      { $match: { 'rows.return_date': { $in: [null, ''] }, 'rows.quantity': { $ne: null } } },
-      { $group: { _id: '$equipment_type_id', rented_out: { $sum: '$rows.quantity' } } },
+      { $match: {
+          $or: [
+            { 'rows.return_date': { $in: [null, ''] } },
+            { 'rows.return_date': { $gte: today } },
+          ],
+          'rows.quantity': { $ne: null },
+      }},
+      { $group: { _id: '$rows.equipment_type_id', rented_out: { $sum: '$rows.quantity' } } },
     ])
     const rentedMap = {}
     for (const r of rentedAgg) rentedMap[r._id.toString()] = r.rented_out

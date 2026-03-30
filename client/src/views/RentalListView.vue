@@ -20,16 +20,21 @@ const options = computed(() => {
   store.rentals.forEach(inv => {
     if (inv.client_name) clients.add(inv.client_name)
     if (inv.site_name) sites.add(inv.site_name)
-    if (inv.equipment_name) equipments.add(inv.equipment_name)
+    if (Array.isArray(inv.rows)) {
+      inv.rows.forEach(row => {
+        if (row.equipment_name) equipments.add(row.equipment_name)
+      })
+    }
   })
   return { clients: [...clients].sort(), sites: [...sites].sort(), equipments: [...equipments].sort() }
 })
 
 const filteredRentals = computed(() => store.rentals.filter(inv => {
+  const matchesEquipment = !filters.value.equipment || inv.rows.some(row => row.equipment_name === filters.value.equipment)
   return (!filters.value.client || inv.client_name === filters.value.client) &&
          (!filters.value.site || inv.site_name === filters.value.site) &&
-         (!filters.value.equipment || inv.equipment_name === filters.value.equipment) &&
-         (!filters.value.month || inv.year_month === filters.value.month)
+         (!filters.value.month || inv.year_month === filters.value.month) &&
+         matchesEquipment
 }))
 
 function toggleExpand(id) { expandedId.value = expandedId.value === id ? null : id }
@@ -43,7 +48,7 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
     <!-- 標題區域 -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="space-y-1">
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">租賃請款紀錄</h1>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">租賃請款單</h1>
         <p class="text-sm font-medium text-slate-400 dark:text-slate-500">帳務歷史與明細審閱</p>
       </div>
       <AppButton size="lg" @click="router.push('/rentals/new')">
@@ -56,26 +61,33 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
 
     <!-- 篩選面板 -->
     <AppCard>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶</label>
-          <select v-model="filters.client" class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+          <select v-model="filters.client" class="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
             <option value="">全部客戶</option>
             <option v-for="c in options.clients" :key="c" :value="c">{{ c }}</option>
           </select>
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地</label>
-          <select v-model="filters.site" class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+          <select v-model="filters.site" class="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
             <option value="">全部工地</option>
             <option v-for="s in options.sites" :key="s" :value="s">{{ s }}</option>
           </select>
         </div>
         <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">月份</label>
-          <MonthPicker v-model="filters.month" />
+          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">設備</label>
+          <select v-model="filters.equipment" class="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+            <option value="">全部設備</option>
+            <option v-for="e in options.equipments" :key="e" :value="e">{{ e }}</option>
+          </select>
         </div>
-        <AppButton variant="secondary" @click="resetFilters">重設篩選</AppButton>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">月份</label>
+          <MonthPicker v-model="filters.month" dense />
+        </div>
+        <AppButton variant="soft-blue" size="dense" @click="resetFilters">重設篩選</AppButton>
       </div>
     </AppCard>
 
@@ -94,17 +106,25 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
         <!-- 簡項視圖 -->
         <div class="px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer" @click="toggleExpand(inv.id)">
           <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200"
-              :class="expandedId === inv.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/50 group-hover:text-blue-500'"
-            >
+<div
+  class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200"
+  :class="expandedId === inv.id
+    ? 'bg-blue-600 text-white'
+    : 'bg-blue-50 dark:bg-blue-950/50 text-blue-500'"
+>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200" :class="{ 'rotate-90': expandedId === inv.id }"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
             <div class="space-y-1">
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 flex-wrap">
                 <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ inv.client_name }}</h3>
-                <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 text-xs font-semibold rounded border border-blue-100 dark:border-blue-900">{{ inv.equipment_name }}</span>
+                <div class="flex gap-1.5 flex-wrap">
+                  <span v-for="(name, idx) in inv.equipment_names" :key="idx" 
+                    class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 text-[10px] font-bold rounded border border-blue-100 dark:border-blue-900 uppercase tracking-tight"
+                  >
+                    {{ name }}
+                  </span>
+                  <span v-if="!inv.equipment_names?.length" class="px-2 py-0.5 bg-slate-50 dark:bg-slate-800 text-slate-400 text-[10px] rounded border border-slate-200">未指定品項</span>
+                </div>
               </div>
               <p v-if="inv.site_name" class="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-xs">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -116,13 +136,19 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
           <div class="flex items-center gap-6">
             <div class="hidden md:block text-right border-r border-slate-100 dark:border-slate-700 pr-6">
               <p class="text-xs text-slate-400 dark:text-slate-500 mb-0.5">月份</p>
-              <p class="text-sm font-semibold text-slate-600 dark:text-slate-300 font-mono-num">{{ inv.year_month }}</p>
+              <p class="text-base font-semibold text-slate-600 dark:text-slate-300 font-mono-num">{{ inv.year_month }}</p>
             </div>
             <div class="flex items-center gap-2">
-              <button @click.stop="router.push(`/rentals/${inv.id}`)" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-blue-600 hover:text-white transition-all duration-300 ease-out active:scale-[0.95] border border-slate-200/60 dark:border-slate-700/60 hover:border-transparent hover:shadow-[0_2px_8px_0_rgba(37,99,235,0.3)]" title="編輯">
+              <button @click.stop="router.push(`/rentals/${inv.id}`)" 
+                class="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/60 hover:bg-blue-600 hover:text-white transition-all duration-300 ease-out active:scale-[0.95] hover:border-transparent hover:shadow-[0_2px_8px_0_rgba(37,99,235,0.3)]" 
+                title="編輯"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
-              <button @click.stop="remove(inv.id)" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-red-500 hover:text-white transition-all duration-300 ease-out active:scale-[0.95] border border-slate-200/60 dark:border-slate-700/60 hover:border-transparent" title="刪除">
+              <button @click.stop="remove(inv.id)" 
+                class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/60 hover:bg-red-600 hover:text-white transition-all duration-300 ease-out active:scale-[0.95] hover:border-transparent hover:shadow-[0_2px_8px_0_rgba(239,68,68,0.3)]" 
+                title="刪除"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
               </button>
             </div>
@@ -140,12 +166,13 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
               <table class="w-full border-collapse">
                 <thead>
                   <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">狀態</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">出貨 / 歸還</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">數量</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">計費區間</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">天數</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-blue-500 dark:text-blue-400 uppercase tracking-wide text-right pr-6 whitespace-nowrap">小計 (未稅)</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-20">狀態</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap w-32">設備品項</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-48">出貨 / 歸還</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-24">數量</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-48">計費區間</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-24">天數</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-blue-500 dark:text-blue-400 uppercase tracking-wide text-right pr-6 whitespace-nowrap w-36">小計 (未稅)</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60">
@@ -154,14 +181,17 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
                       <span v-if="row.is_continued" class="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-semibold text-xs">續租</span>
                       <span v-else class="text-slate-300 dark:text-slate-600 text-sm">—</span>
                     </td>
+                    <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                      {{ row.equipment_name || '—' }}
+                    </td>
                     <td class="px-4 py-3 font-mono-num text-sm text-center whitespace-nowrap">
-                      <span class="text-slate-700 dark:text-slate-300 font-semibold">{{ row.delivery_date || '—' }}</span>
+                      <span class="text-slate-700 dark:text-slate-300">{{ row.delivery_date || '—' }}</span>
                       <span class="mx-2 text-slate-300 dark:text-slate-600">/</span>
                       <span class="text-slate-500 dark:text-slate-400">{{ row.return_date || '—' }}</span>
                     </td>
                     <td class="px-4 py-3 text-center whitespace-nowrap">
                       <span class="font-mono-num font-semibold text-slate-800 dark:text-slate-200 text-sm">{{ row.quantity || '0' }}</span>
-                      <span class="text-xs text-slate-400 dark:text-slate-500 ml-1">{{ inv.unit }}</span>
+                      <span class="text-xs text-slate-400 dark:text-slate-500 ml-1">{{ row.unit }}</span>
                     </td>
                     <td class="px-4 py-3 font-mono-num text-sm text-center whitespace-nowrap text-slate-500 dark:text-slate-400">
                       {{ row.start_date || '—' }}<span class="mx-1.5 text-slate-300 dark:text-slate-600">~</span>{{ row.end_date || '—' }}

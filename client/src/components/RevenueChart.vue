@@ -13,6 +13,7 @@ Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryS
 const props = defineProps({
   rentals:  { type: Array, default: () => [] },
   freights: { type: Array, default: () => [] },
+  filters:  { type: Object, default: () => ({ client: '', site: '', equipment: '' }) },
 })
 
 const { isDark } = useTheme()
@@ -34,11 +35,27 @@ const chartData = computed(() => {
   const rt = {}, ft = {}
 
   props.rentals.forEach(inv => {
-    const t = (inv.rows || []).reduce(
-      (s, r) => s + (r.quantity ?? 0) * (r.daily_rate ?? 0) * (r.days ?? 0), 0)
-    rt[inv.year_month] = (rt[inv.year_month] || 0) + t
+    const matchClient = !props.filters.client || inv.client_name === props.filters.client
+    const matchSite = !props.filters.site || inv.site_name === props.filters.site
+    if (!matchClient || !matchSite) return
+
+    const t = (inv.rows || []).reduce((s, r) => {
+      const matchEquipment = !props.filters.equipment || r.equipment_name === props.filters.equipment
+      if (!matchEquipment) return s
+      return s + (r.quantity ?? 0) * (r.daily_rate ?? 0) * (r.days ?? 0)
+    }, 0)
+    
+    if (t > 0) rt[inv.year_month] = (rt[inv.year_month] || 0) + t
   })
+  
   props.freights.forEach(inv => {
+    const matchClient = !props.filters.client || inv.client_name === props.filters.client
+    const matchSite = !props.filters.site || inv.site_name === props.filters.site
+    if (!matchClient || !matchSite) return
+    // Since freights don't have row-level structured equipment_type_id mapping normally, 
+    // we bypass equipment filtering for freights of the global search unless you want fuzzy cargo search.
+    if (props.filters.equipment) return 
+
     const t = (inv.rows || []).reduce((s, r) => s + (r.amount ?? 0), 0)
     ft[inv.year_month] = (ft[inv.year_month] || 0) + t
   })

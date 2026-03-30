@@ -7,6 +7,7 @@ import DateRangePicker from '../components/DateRangePicker.vue'
 import MonthPicker from '../components/MonthPicker.vue'
 import NumberInput from '../components/base/NumberInput.vue'
 import AppInput from '../components/base/AppInput.vue'
+import AppButton from '../components/base/AppButton.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -18,13 +19,13 @@ const errorMsg = ref('')
 const successMsg = ref('')
 
 const form = ref({
-  equipment_type_id: '',
   client_name: '',
   vendor: '',
   site_name: '',
   year_month: '',
-  rows: Array.from({ length: 7 }, () => ({
+  rows: [{
     is_continued: false,
+    equipment_type_id: '',
     delivery_date: '',
     return_date: '',
     quantity: '',
@@ -33,10 +34,10 @@ const form = ref({
     end_date: '',
     days: '',
     notes: '',
-  })),
+  }],
 })
 
-const editId = computed(() => route.params.id ? Number(route.params.id) : null)
+const editId = computed(() => route.params.id ? String(route.params.id) : null)
 const isEdit = computed(() => !!editId.value)
 
 onMounted(async () => {
@@ -46,26 +47,51 @@ onMounted(async () => {
 
   if (isEdit.value) {
     const data = await api.getRental(editId.value)
-    form.value.equipment_type_id = data.equipment_type_id
     form.value.client_name = data.client_name
-    form.value.vendor = data.vendor || ''
-    form.value.site_name = data.site_name || ''
+    form.value.vendor = data.vendor
+    form.value.site_name = data.site_name
     form.value.year_month = data.year_month
-    data.rows.forEach((r, i) => {
-      if (i < 7) form.value.rows[i] = {
-        is_continued: !!r.is_continued,
-        delivery_date: r.delivery_date || '',
-        return_date: r.return_date || '',
-        quantity: r.quantity ?? '',
-        daily_rate: r.daily_rate ?? '',
-        start_date: r.start_date || '',
-        end_date: r.end_date || '',
-        days: r.days ?? '',
-        notes: r.notes || '',
-      }
-    })
+    form.value.rows = []
+    if (data.rows && data.rows.length > 0) {
+      data.rows.forEach((r) => {
+        form.value.rows.push({
+          is_continued: !!r.is_continued,
+          equipment_type_id: r.equipment_type_id || '',
+          delivery_date: r.delivery_date || '',
+          return_date: r.return_date || '',
+          quantity: r.quantity ?? '',
+          daily_rate: r.daily_rate ?? '',
+          start_date: r.start_date || '',
+          end_date: r.end_date || '',
+          days: r.days ?? '',
+          notes: r.notes || '',
+        })
+      })
+    } else {
+      addRow()
+    }
   }
 })
+
+function addRow() {
+  const lastRow = form.value.rows[form.value.rows.length - 1]
+  form.value.rows.push({
+    is_continued: false,
+    equipment_type_id: lastRow?.equipment_type_id || '',
+    delivery_date: '', return_date: '', quantity: '', daily_rate: '',
+    start_date: '', end_date: '', days: '', notes: '',
+  })
+}
+
+function duplicateRow(idx) {
+  const source = form.value.rows[idx]
+  form.value.rows.splice(idx + 1, 0, { ...source })
+}
+
+function removeRow(idx) {
+  form.value.rows.splice(idx, 1)
+  if (form.value.rows.length === 0) addRow()
+}
 
 function fmt(n) { return n ? n.toLocaleString() : '0' }
 
@@ -95,14 +121,13 @@ const total = computed(() => subtotal.value + tax.value)
 
 async function save() {
   errorMsg.value = ''
-  if (!form.value.equipment_type_id) { errorMsg.value = '請選擇設備種類'; return }
   if (!form.value.client_name.trim()) { errorMsg.value = '請填寫客戶名稱'; return }
+  if (form.value.rows.some(r => !r.equipment_type_id)) { errorMsg.value = '請確保每一行都已選擇設備種類'; return }
 
   saving.value = true
   try {
     const payload = {
       ...form.value,
-      equipment_type_id: Number(form.value.equipment_type_id),
       rows: form.value.rows
         .filter(r => r.quantity || r.start_date || r.delivery_date)
         .map(r => ({
@@ -146,13 +171,13 @@ async function save() {
       </div>
 
       <div class="flex items-center gap-3">
-        <button
-          class="h-10 px-6 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold rounded-xl hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white transition-all duration-300 ease-out active:scale-[0.98] disabled:opacity-50 text-sm shadow-[0_1px_4px_0_rgba(0,0,0,0.15)] hover:shadow-[0_2px_10px_0_rgba(37,99,235,0.3)]"
-          :disabled="saving"
+        <AppButton
+          variant="primary"
+          :loading="saving"
           @click="save"
         >
-          {{ saving ? '正在儲存…' : '儲存單據' }}
-        </button>
+          {{ saving ? '正在儲存…' : (isEdit ? '儲存修改' : '建立租賃單') }}
+        </AppButton>
       </div>
     </div>
 
@@ -170,29 +195,22 @@ async function save() {
       <div class="px-6 py-4 border-b border-slate-100/80 dark:border-slate-700/60">
         <h3 class="text-base font-semibold text-slate-700 dark:text-slate-200">基本資料</h3>
       </div>
-      <div class="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
-        <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">設備種類 *</label>
-          <select v-model="form.equipment_type_id" class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:bg-blue-50 dark:focus:bg-blue-950/60 outline-none text-sm text-slate-700 dark:text-slate-200 transition-all cursor-pointer font-medium">
-            <option value="">選擇設備...</option>
-            <option v-for="et in equipmentTypes" :key="et.id" :value="et.id">{{ et.name }}</option>
-          </select>
-        </div>
+      <div class="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶名稱 *</label>
-          <AppInput v-model="form.client_name" variant="blue" placeholder="輸入廠商名稱" />
+          <AppInput v-model="form.client_name" variant="blue" dense placeholder="輸入廠商名稱" />
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">廠商代號</label>
-          <AppInput v-model="form.vendor" variant="blue" placeholder="代號" />
+          <AppInput v-model="form.vendor" variant="blue" dense placeholder="代號" />
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地名稱</label>
-          <AppInput v-model="form.site_name" variant="blue" placeholder="工程案名" />
+          <AppInput v-model="form.site_name" variant="blue" dense placeholder="工程案名" />
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">結帳年月 *</label>
-          <MonthPicker v-model="form.year_month" variant="blue" />
+          <MonthPicker v-model="form.year_month" variant="blue" dense />
         </div>
       </div>
     </section>
@@ -201,28 +219,36 @@ async function save() {
     <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)] transition-all duration-300">
       <div class="px-6 py-4 border-b border-slate-100/80 dark:border-slate-700/60 flex items-center justify-between">
         <h3 class="text-base font-semibold text-slate-700 dark:text-slate-200">租賃明細</h3>
-        <span class="text-xs font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded border border-blue-100 dark:border-blue-900">共 7 行</span>
+        <span class="text-xs font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded border border-blue-100 dark:border-blue-900">共 {{ form.rows.length }} 行</span>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full border-collapse min-w-195">
+        <table class="w-full border-collapse">
           <thead>
             <tr class="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100/80 dark:border-slate-700/60">
-              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">續租</th>
-              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">出貨 / 歸還日期</th>
-              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">數量</th>
-              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">日租金</th>
-              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">計費區間</th>
-              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">天數</th>
-              <th class="px-4 py-3 text-xs font-semibold text-blue-500 dark:text-blue-400 uppercase tracking-wide text-right pr-6 whitespace-nowrap">小計 (未稅)</th>
-              <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">備註</th>
+              <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">續租</th>
+              <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">設備品項 *</th>
+              <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">出貨/歸還</th>
+              <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">數量</th>
+              <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">日租金</th>
+              <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">計費區間</th>
+              <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">天數</th>
+              <th class="px-2 py-3 text-xs font-semibold text-blue-500 dark:text-blue-400 uppercase tracking-wide text-right pr-4 whitespace-nowrap">小計</th>
+              <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">備註</th>
+              <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center w-24 whitespace-nowrap">操作</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50 dark:divide-slate-800">
             <tr v-for="(row, i) in form.rows" :key="i" class="hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition-colors">
-              <td class="px-4 py-3 text-center">
+              <td class="px-2 py-3 text-center">
                 <input type="checkbox" v-model="row.is_continued" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer">
               </td>
-              <td class="px-4 py-3">
+              <td class="px-2 py-3 w-40">
+                <select v-model="row.equipment_type_id" class="w-full h-9 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 transition-all cursor-pointer font-medium">
+                  <option value="">選擇...</option>
+                  <option v-for="et in equipmentTypes" :key="et.id" :value="et.id">{{ et.name }}</option>
+                </select>
+              </td>
+              <td class="px-2 py-3 w-44">
                 <DateRangePicker variant="blue"
                   :start-date="row.delivery_date"
                   :end-date="row.return_date"
@@ -230,13 +256,13 @@ async function save() {
                   @update:end-date="setReturn(i, $event)"
                 />
               </td>
-              <td class="px-4 py-3 w-24">
-                <NumberInput v-model="row.quantity" />
+              <td class="px-1 py-3 ">
+                <NumberInput v-model="row.quantity" class="w-24 mx-auto" />
               </td>
-              <td class="px-4 py-3 w-28">
-                <NumberInput v-model="row.daily_rate" :step="100" />
+              <td class="px-1 py-3">
+                <NumberInput v-model="row.daily_rate" :step="100" class="w-24 mx-auto" />
               </td>
-              <td class="px-4 py-3">
+              <td class="px-2 py-3 w-44">
                 <DateRangePicker variant="blue"
                   :start-date="row.start_date"
                   :end-date="row.end_date"
@@ -244,24 +270,49 @@ async function save() {
                   @update:end-date="setEnd(i, $event)"
                 />
               </td>
-              <td class="px-4 py-3 w-20">
-                <NumberInput v-model="row.days" :min="0" />
+              <td class="px-2 py-3 text-center">
+                <NumberInput v-model="row.days" :min="0" class="w-24 mx-auto" />
               </td>
-              <td class="px-4 py-3 text-right pr-6">
-                <span class="font-mono-num font-bold text-blue-600 dark:text-blue-400 text-sm">
+              <td class="px-2 py-3 text-right pr-4">
+                <span class="font-mono-num font-bold text-blue-600 dark:text-blue-400 text-xs">
                   {{ rowTotal(row) > 0 ? fmt(rowTotal(row)) : '—' }}
                 </span>
               </td>
-              <td class="px-4 py-3 min-w-36">
-                <AppInput v-model="row.notes" variant="blue" placeholder="備註..." />
+              <td class="px-2 py-3 min-w-24">
+                <AppInput v-model="row.notes" variant="blue" dense placeholder="備註..." />
+              </td>
+              <td class="px-2 py-3 text-center whitespace-nowrap">
+                <div class="flex items-center justify-center gap-1.5">
+                  <button @click.prevent="duplicateRow(i)" 
+                    class="w-9 h-9 flex items-center justify-center bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/60 hover:bg-blue-600 hover:text-white shadow-sm rounded-lg transition-all duration-300 ease-out active:scale-[0.85]" 
+                    title="複製此行"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <button @click.prevent="removeRow(i)" 
+                    class="w-9 h-9 flex items-center justify-center bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/60 hover:bg-red-600 hover:text-white shadow-sm rounded-lg transition-all duration-300 ease-out active:scale-[0.85]" 
+                    title="刪除此行"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
+      <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-center bg-slate-50/20 dark:bg-slate-800/20">
+        <button @click="addRow" 
+          class="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/60 hover:bg-blue-600 hover:text-white font-semibold text-base transition-all duration-300 ease-out active:scale-[0.98]"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          增加一筆空白行
+        </button>
+      </div>
+
       <!-- 結算區 -->
-      <div class="p-8 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-end gap-3 border-t border-slate-100 dark:border-slate-700">
+      <div class="sticky bottom-0 z-10 p-8 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 flex flex-col items-end gap-3 border-t border-slate-200 dark:border-slate-700 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)] pb-10">
         <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
           <span class="text-xs font-semibold uppercase tracking-wide">應收小計（未稅）</span>
           <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(subtotal) }} <small class="text-xs font-normal">元</small></span>

@@ -4,6 +4,7 @@ defineProps({
   placeholder: { type: String, default: '' },
   variant:     { type: String, default: 'blue' },  // blue | amber
   ghost:       { type: Boolean, default: false },  // 表格行內輕量樣式
+  dense:       { type: Boolean, default: false },  // 36px 緊湊樣式
   type:        { type: String, default: 'text' },
 })
 defineEmits(['update:modelValue'])
@@ -15,7 +16,11 @@ defineEmits(['update:modelValue'])
     :value="modelValue"
     :placeholder="placeholder"
     class="ai-base"
-    :class="ghost ? 'ai-ghost' : [`ai-full`, `ai--${variant}`]"
+    :class="[
+      ghost ? 'ai-ghost' : 'ai-full',
+      `ai--${variant}`,
+      { 'ai--dense': dense }
+    ]"
     @input="$emit('update:modelValue', $event.target.value)"
   />
 </template>
@@ -23,7 +28,7 @@ defineEmits(['update:modelValue'])
 <style scoped>
 .ai-base {
   width: 100%; outline: none;
-  font-size: 13px; font-weight: 500;
+  font-size: 14px; font-weight: 500;
   transition: border-color 0.15s;
 }
 
@@ -34,6 +39,7 @@ defineEmits(['update:modelValue'])
   background: #f8fafc; color: #1e293b;
   box-sizing: border-box;
 }
+.ai--dense { height: 36px; padding: 0 10px; }
 .ai--blue::placeholder  { color: #94a3b8; }
 .ai--amber::placeholder { color: #94a3b8; }
 

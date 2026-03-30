@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { api } from '../api/index.js'
 import AppButton from '../components/base/AppButton.vue'
+import AppCard from '../components/base/AppCard.vue'
 import MonthPicker from '../components/MonthPicker.vue'
 
 const now = new Date()
@@ -91,13 +92,17 @@ function fmt(num) {
         <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">月結報表總覽</h1>
         <p class="text-sm font-medium text-slate-400 dark:text-slate-500">帳務匯總與報表產製</p>
       </div>
-
-      <div class="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)]">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 dark:text-slate-500"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <label class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">月份</label>
-        <MonthPicker v-model="yearMonth" transparent />
-      </div>
     </div>
+
+    <!-- 篩選面板 -->
+    <AppCard>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">月份</label>
+          <MonthPicker v-model="yearMonth" variant="violet" dense />
+        </div>
+      </div>
+    </AppCard>
 
     <!-- 空狀態 -->
     <div v-if="clientGroups.length === 0" class="flex flex-col items-center justify-center py-32 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
@@ -114,7 +119,7 @@ function fmt(num) {
         :key="group.client_name"
         class="bg-white dark:bg-slate-900 border rounded-2xl overflow-hidden transition-all duration-300 ease-out shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)]"
         :class="openClients.has(group.client_name)
-          ? 'border-blue-400/70 dark:border-blue-600/70 ring-4 ring-blue-50 dark:ring-blue-950/50 shadow-[0_4px_16px_0_rgba(37,99,235,0.08)]'
+          ? 'border-violet-400/70 dark:border-violet-600/70 ring-4 ring-violet-50 dark:ring-violet-950/50 shadow-[0_4px_16px_0_rgba(124,58,237,0.08)]'
           : 'border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300/80 dark:hover:border-slate-600/80 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'"
       >
         <!-- 手風琴標題 -->
@@ -122,7 +127,7 @@ function fmt(num) {
           <div class="flex items-center gap-4 flex-1">
             <div class="w-9 h-9 rounded-xl flex items-center justify-center transition-colors shrink-0"
               :class="openClients.has(group.client_name)
-                ? 'bg-blue-600 text-white'
+                ? 'bg-violet-600 text-white'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200" :class="{ 'rotate-180': openClients.has(group.client_name) }"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
@@ -141,7 +146,7 @@ function fmt(num) {
               <p class="text-xl font-bold text-slate-900 dark:text-slate-100 font-mono-num">{{ fmt(group.subtotal) }} <span class="text-xs font-normal text-slate-400 dark:text-slate-500">元</span></p>
             </div>
             <AppButton
-              variant="emerald"
+              variant="violet"
               size="md"
               :loading="exportingSet.has(group.client_name)"
               @click.stop="exportSummary(group)"
@@ -161,7 +166,7 @@ function fmt(num) {
           enter-to-class="opacity-100 translate-y-0"
         >
           <div v-if="openClients.has(group.client_name)" class="px-6 pb-6 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/20 dark:bg-slate-800/20 space-y-8 pt-6">
-            <div v-if="errorMap[group.client_name]" class="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-100 dark:border-red-900 font-semibold flex items-center gap-3 text-sm">
+            <div v-if="errorMap[group.client_name]" class="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-100 dark:border-red-900 font-semibold flex items-center gap-3 text-base">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               {{ errorMap[group.client_name] }}
             </div>
@@ -170,7 +175,7 @@ function fmt(num) {
             <div v-for="inv in group.rentals" :key="'r'+inv.id" class="space-y-3">
               <div class="flex items-center gap-3">
                 <div class="w-1 h-4 bg-blue-500 rounded-full"></div>
-                <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-300">租賃費用 — {{ inv.equipment_name }}</h4>
+                <h4 class="text-base font-semibold text-slate-700 dark:text-slate-300">租賃費用 — {{ inv.equipment_name }}</h4>
                 <span v-if="inv.site_name" class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded">{{ inv.site_name }}</span>
               </div>
               <div class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900">
@@ -207,7 +212,7 @@ function fmt(num) {
             <div v-for="inv in group.freights" :key="'f'+inv.id" class="space-y-3">
               <div class="flex items-center gap-3">
                 <div class="w-1 h-4 bg-amber-500 rounded-full"></div>
-                <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-300">運輸費用明細</h4>
+                <h4 class="text-base font-semibold text-slate-700 dark:text-slate-300">運輸費用明細</h4>
               </div>
               <div class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900">
                 <table class="w-full text-center border-collapse min-w-120">
@@ -249,9 +254,9 @@ function fmt(num) {
                 <p class="text-2xl font-bold text-slate-900 dark:text-slate-100 font-mono-num">{{ fmt(group.subtotal) }}</p>
               </div>
 
-              <div class="text-right border-l-2 border-blue-500 dark:border-blue-600 pl-6 sm:pl-8">
-                <p class="text-xs font-semibold text-blue-500 dark:text-blue-400 uppercase tracking-wide mb-1">含稅總計（5%）</p>
-                <p class="text-3xl font-bold text-blue-600 dark:text-blue-400 font-mono-num">{{ fmt(group.subtotal + Math.round(group.subtotal * 0.05)) }} <span class="text-sm font-normal text-slate-400 dark:text-slate-500">元</span></p>
+              <div class="text-right border-l-2 border-violet-500 dark:border-violet-600 pl-6 sm:pl-8">
+                <p class="text-xs font-semibold text-violet-500 dark:text-violet-400 uppercase tracking-wide mb-1">含稅總計（5%）</p>
+                <p class="text-3xl font-bold text-violet-600 dark:text-violet-400 font-mono-num">{{ fmt(group.subtotal + Math.round(group.subtotal * 0.05)) }} <span class="text-sm font-normal text-slate-400 dark:text-slate-500">元</span></p>
               </div>
             </div>
           </div>

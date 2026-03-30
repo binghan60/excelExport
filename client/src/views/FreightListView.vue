@@ -19,14 +19,20 @@ const options = computed(() => {
   const clients = new Set(), sites = new Set()
   store.freights.forEach(f => {
     if (f.client_name) clients.add(f.client_name)
-    if (f.site_name) sites.add(f.site_name)
+    if (Array.isArray(f.rows)) {
+      f.rows.forEach(r => {
+        if (r.route_from) sites.add(r.route_from)
+        if (r.route_to) sites.add(r.route_to)
+      })
+    }
   })
   return { clients: [...clients].sort(), sites: [...sites].sort() }
 })
 
 const filteredFreights = computed(() => store.freights.filter(f => {
+  const hasSiteMatch = !filters.value.site || (f.rows && f.rows.some(r => r.route_from === filters.value.site || r.route_to === filters.value.site))
   return (!filters.value.client || f.client_name === filters.value.client) &&
-         (!filters.value.site || f.site_name === filters.value.site) &&
+         hasSiteMatch &&
          (!filters.value.month || f.year_month === filters.value.month)
 }))
 
@@ -60,23 +66,23 @@ function rowSubtotal(f) {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶</label>
-          <select v-model="filters.client" class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-amber-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+          <select v-model="filters.client" class="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-amber-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
             <option value="">全部客戶</option>
             <option v-for="c in options.clients" :key="c" :value="c">{{ c }}</option>
           </select>
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地</label>
-          <select v-model="filters.site" class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-amber-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+          <select v-model="filters.site" class="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-amber-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
             <option value="">全部工地</option>
             <option v-for="s in options.sites" :key="s" :value="s">{{ s }}</option>
           </select>
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">月份</label>
-          <MonthPicker v-model="filters.month" variant="amber" />
+          <MonthPicker v-model="filters.month" variant="amber" dense />
         </div>
-        <AppButton variant="secondary" @click="resetFilters">重設篩選</AppButton>
+        <AppButton variant="soft-amber" size="dense" @click="resetFilters">重設篩選</AppButton>
       </div>
     </AppCard>
 
@@ -124,10 +130,7 @@ function rowSubtotal(f) {
                 <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ f.client_name }}</h3>
                 <span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded border border-amber-100 dark:border-amber-900">運費帳單</span>
               </div>
-              <div v-if="f.site_name" class="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-xs">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/></svg>
-                {{ f.site_name }}
-              </div>
+
             </div>
           </div>
 
@@ -135,25 +138,25 @@ function rowSubtotal(f) {
             <!-- 月份 -->
             <div class="hidden md:block text-right border-r border-slate-100 dark:border-slate-700 pr-6">
               <p class="text-xs text-slate-400 dark:text-slate-500 mb-0.5">月份</p>
-              <p class="text-sm font-semibold text-slate-600 dark:text-slate-300 font-mono-num">{{ f.year_month }}</p>
+              <p class="text-base font-semibold text-slate-600 dark:text-slate-300 font-mono-num">{{ f.year_month }}</p>
             </div>
             <!-- 未稅合計 -->
             <div class="text-right border-r border-slate-100 dark:border-slate-700 pr-6">
               <p class="text-xs text-slate-400 dark:text-slate-500 mb-0.5">未稅合計</p>
-              <p class="text-sm font-bold text-amber-600 dark:text-amber-400 font-mono-num">{{ fmt(rowSubtotal(f)) }}</p>
+              <p class="text-base font-bold text-amber-600 dark:text-amber-400 font-mono-num">{{ fmt(rowSubtotal(f)) }}</p>
             </div>
             <!-- 操作按鈕 -->
             <div class="flex items-center gap-2">
               <button
                 @click.stop="router.push(`/freights/${f.id}`)"
-                class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 text-slate-400 dark:text-slate-500 hover:bg-amber-500 hover:text-white hover:border-transparent transition-all duration-300 ease-out active:scale-[0.95] hover:shadow-[0_2px_8px_0_rgba(217,119,6,0.3)]"
+                class="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800/60 hover:bg-amber-500 hover:text-white hover:border-transparent transition-all duration-300 ease-out active:scale-[0.95] hover:shadow-[0_2px_8px_0_rgba(217,119,6,0.3)]"
                 title="編輯"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
               <button
                 @click.stop="remove(f.id)"
-                class="w-9 h-9 flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-all duration-300 ease-out active:scale-[0.95]"
+                class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/60 hover:bg-red-600 hover:text-white hover:border-transparent transition-all duration-300 ease-out active:scale-[0.95] hover:shadow-[0_2px_8px_0_rgba(239,68,68,0.3)]"
                 title="刪除"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -174,12 +177,11 @@ function rowSubtotal(f) {
                 <thead>
                   <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
                     <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-10">#</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">運輸日期</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">起點</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">迄點</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">載運品項</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-amber-500 dark:text-amber-400 uppercase tracking-wide text-right pr-6 whitespace-nowrap">金額（未稅）</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">備註</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-28">運輸日期</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">運輸路線 (起點 ➔ 迄點)</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap w-56">載運品項</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-amber-500 dark:text-amber-400 uppercase tracking-wide text-right pr-6 whitespace-nowrap w-32">金額（未稅）</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap w-64">備註</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60">
@@ -189,9 +191,14 @@ function rowSubtotal(f) {
                     class="hover:bg-amber-50/20 dark:hover:bg-amber-950/10 transition-colors"
                   >
                     <td class="px-4 py-3 text-center text-slate-300 dark:text-slate-600 font-semibold text-xs">{{ i + 1 }}</td>
-                    <td class="px-4 py-3 font-mono-num text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ row.date || '—' }}</td>
-                    <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">{{ row.route_from || '—' }}</td>
-                    <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">{{ row.route_to || '—' }}</td>
+                    <td class="px-4 py-3 font-mono-num text-sm text-center text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ row.date || '—' }}</td>
+                    <td class="px-4 py-3 text-sm whitespace-nowrap">
+                      <div class="flex items-center justify-center gap-3">
+                        <span class="text-slate-700 dark:text-slate-300 font-medium w-20 text-right truncate" :title="row.route_from">{{ row.route_from || '—' }}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 dark:text-slate-500 shrink-0"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        <span class="text-slate-700 dark:text-slate-300 font-medium w-20 text-left truncate" :title="row.route_to">{{ row.route_to || '—' }}</span>
+                      </div>
+                    </td>
                     <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{{ row.cargo || '—' }}</td>
                     <td class="px-4 py-3 text-right pr-6 font-mono-num font-bold text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
                       {{ row.amount != null && row.amount !== '' ? fmt(row.amount) : '—' }}
