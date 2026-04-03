@@ -7,9 +7,11 @@ import rentalRouter    from './routes/rental.js'
 import freightRouter   from './routes/freight.js'
 import inventoryRouter from './routes/inventory.js'
 import exportRouter    from './routes/export.js'
+import adminRouter     from './routes/admin.js'
+import dns from "node:dns/promises";
+dns.setServers(["1.1.1.1"]);
 
 const app = express()
-console.log(process.env.CORS_ORIGIN)
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }))
 app.use(express.json())
 
@@ -17,6 +19,7 @@ app.use('/api/rentals',   rentalRouter)
 app.use('/api/freight',   freightRouter)
 app.use('/api/inventory', inventoryRouter)
 app.use('/api/export',    exportRouter)
+app.use('/api/admin',     adminRouter)
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 
 const PORT = process.env.PORT || 3000

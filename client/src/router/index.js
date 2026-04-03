@@ -11,7 +11,8 @@ const router = createRouter({
     { path: '/freights', component: () => import('../views/FreightListView.vue') },
     { path: '/freights/new', component: () => import('../views/FreightFormView.vue') },
     { path: '/freights/:id', component: () => import('../views/FreightFormView.vue') },
-    { path: '/inventory', component: () => import('../views/InventoryMgmtView.vue') },
+    { path: '/inventory', redirect: '/admin' },
+    { path: '/admin', component: () => import('../views/InventoryMgmtView.vue') },
     { path: '/summary', component: () => import('../views/SummaryView.vue') },
   ],
 })

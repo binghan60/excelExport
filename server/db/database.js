@@ -61,16 +61,31 @@ const freightRowSchema = new Schema({
 
 const freightInvoiceSchema = new Schema({
   client_name: { type: String, required: true },
+  site_name:   { type: String, default: '' },
   year_month:  { type: String, required: true },
   rows:        [freightRowSchema],
 }, { timestamps: { createdAt: 'created_at', updatedAt: false } })
 withId(freightInvoiceSchema)
+
+// ── Customer ─────────────────────────────────────────────
+const customerSchema = new Schema({
+  name: { type: String, required: true, unique: true },
+})
+withId(customerSchema)
+
+// ── Site（工地）───────────────────────────────────────────
+const siteSchema = new Schema({
+  name: { type: String, required: true, unique: true },
+})
+withId(siteSchema)
 
 // ── Models ───────────────────────────────────────────────
 const EquipmentType  = mongoose.model('EquipmentType',  equipmentTypeSchema)
 const InventoryLog   = mongoose.model('InventoryLog',   inventoryLogSchema)
 const RentalInvoice  = mongoose.model('RentalInvoice',  rentalInvoiceSchema)
 const FreightInvoice = mongoose.model('FreightInvoice', freightInvoiceSchema)
+const Customer       = mongoose.model('Customer',       customerSchema)
+const Site           = mongoose.model('Site',           siteSchema)
 
 // ── 預設設備種類（首次啟動時建立）───────────────────────
 async function seedDefaults() {
@@ -89,4 +104,4 @@ async function seedDefaults() {
   }
 }
 
-export { EquipmentType, InventoryLog, RentalInvoice, FreightInvoice, seedDefaults }
+export { EquipmentType, InventoryLog, RentalInvoice, FreightInvoice, Customer, Site, seedDefaults }

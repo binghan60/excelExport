@@ -1,14 +1,19 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { api } from '../api/index.js'
+import { useAdminStore } from '../stores/admin.js'
 import AppButton from '../components/base/AppButton.vue'
 import AppCard from '../components/base/AppCard.vue'
 import MonthPicker from '../components/MonthPicker.vue'
+
+const adminStore = useAdminStore()
 
 const now = new Date()
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
 const yearMonth = ref(currentMonth)
+const filterClient = ref('')
+const filterSite = ref('')
 const allRentals = ref([])
 const allFreights = ref([])
 const openClients = ref(new Set())
@@ -16,23 +21,37 @@ const exportingSet = ref(new Set())
 const errorMap = ref({})
 
 onMounted(async () => {
-  ;[allRentals.value, allFreights.value] = await Promise.all([api.getRentals(), api.getFreights()])
+  ;[allRentals.value, allFreights.value] = await Promise.all([
+    api.getRentals(), api.getFreights(), adminStore.fetchAll()
+  ])
 })
+
+function resetFilters() {
+  yearMonth.value = currentMonth
+  filterClient.value = ''
+  filterSite.value = ''
+}
 
 const clientGroups = computed(() => {
   const ym = yearMonth.value
   const map = {}
+  const clientFilter = filterClient.value
+  const siteFilter = filterSite.value
   for (const inv of allRentals.value) {
     if (inv.year_month !== ym) continue
+    if (siteFilter && inv.site_name !== siteFilter) continue
     if (!map[inv.client_name]) map[inv.client_name] = { rentals: [], freights: [] }
     map[inv.client_name].rentals.push(inv)
   }
   for (const inv of allFreights.value) {
     if (inv.year_month !== ym) continue
+    // 只有當工地篩選空白，或該客戶已有租賃資料時才帶入運費
+    if (siteFilter && !map[inv.client_name]) continue
     if (!map[inv.client_name]) map[inv.client_name] = { rentals: [], freights: [] }
     map[inv.client_name].freights.push(inv)
   }
   return Object.entries(map)
+    .filter(([name]) => !clientFilter || name === clientFilter)
     .sort(([a], [b]) => a.localeCompare(b, 'zh-TW'))
     .map(([client_name, data]) => ({
       client_name,
@@ -101,6 +120,21 @@ function fmt(num) {
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">月份</label>
           <MonthPicker v-model="yearMonth" variant="violet" dense />
         </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶</label>
+          <select v-model="filterClient" class="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-violet-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+            <option value="">全部客戶</option>
+            <option v-for="name in adminStore.allCustomerNames" :key="name" :value="name">{{ name }}</option>
+          </select>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地</label>
+          <select v-model="filterSite" class="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-violet-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+            <option value="">全部工地</option>
+            <option v-for="name in adminStore.allSiteNames" :key="name" :value="name">{{ name }}</option>
+          </select>
+        </div>
+        <AppButton variant="soft-violet" size="dense" @click="resetFilters">重設篩選</AppButton>
       </div>
     </AppCard>
 

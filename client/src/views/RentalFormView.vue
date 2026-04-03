@@ -1,28 +1,41 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useField, useForm } from 'vee-validate'
+import * as yup from 'yup'
 import { api } from '../api/index.js'
 import { useRentalsStore } from '../stores/rentals.js'
+import { useAdminStore } from '../stores/admin.js'
 import DateRangePicker from '../components/DateRangePicker.vue'
 import MonthPicker from '../components/MonthPicker.vue'
 import NumberInput from '../components/base/NumberInput.vue'
 import AppInput from '../components/base/AppInput.vue'
 import AppButton from '../components/base/AppButton.vue'
+import AutocompleteInput from '../components/base/AutocompleteInput.vue'
 
 const router = useRouter()
 const route = useRoute()
 const store = useRentalsStore()
+const adminStore = useAdminStore()
 
 const equipmentTypes = ref([])
 const saving = ref(false)
-const errorMsg = ref('')
+const serverError = ref('')
 const successMsg = ref('')
 
+// ── VeeValidate：頂層欄位 ──────────────────────────────────
+const { validate } = useForm()
+const { value: clientName, errorMessage: clientNameError, handleChange: onClientNameChange, setValue: setClientName } =
+  useField('client_name', yup.string().required('請填寫客戶名稱'))
+const { value: yearMonth, errorMessage: yearMonthError, setValue: setYearMonth } =
+  useField('year_month', yup.string().required('請選擇結帳年月'))
+
+// 動態欄位的列層錯誤（設備必選）
+const rowErrors = ref([])
+
 const form = ref({
-  client_name: '',
   vendor: '',
   site_name: '',
-  year_month: '',
   rows: [{
     is_continued: false,
     equipment_type_id: '',
@@ -41,16 +54,17 @@ const editId = computed(() => route.params.id ? String(route.params.id) : null)
 const isEdit = computed(() => !!editId.value)
 
 onMounted(async () => {
-  equipmentTypes.value = await api.getEquipmentTypes()
+  ;[equipmentTypes.value] = await Promise.all([api.getEquipmentTypes(), adminStore.fetchAll()])
   const now = new Date()
-  form.value.year_month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  setYearMonth(defaultMonth)
 
   if (isEdit.value) {
     const data = await api.getRental(editId.value)
-    form.value.client_name = data.client_name
+    setClientName(data.client_name)
+    setYearMonth(data.year_month)
     form.value.vendor = data.vendor
     form.value.site_name = data.site_name
-    form.value.year_month = data.year_month
     form.value.rows = []
     if (data.rows && data.rows.length > 0) {
       data.rows.forEach((r) => {
@@ -71,6 +85,7 @@ onMounted(async () => {
       addRow()
     }
   }
+  rowErrors.value = form.value.rows.map(() => '')
 })
 
 function addRow() {
@@ -81,15 +96,18 @@ function addRow() {
     delivery_date: '', return_date: '', quantity: '', daily_rate: '',
     start_date: '', end_date: '', days: '', notes: '',
   })
+  rowErrors.value.push('')
 }
 
 function duplicateRow(idx) {
   const source = form.value.rows[idx]
   form.value.rows.splice(idx + 1, 0, { ...source })
+  rowErrors.value.splice(idx + 1, 0, '')
 }
 
 function removeRow(idx) {
   form.value.rows.splice(idx, 1)
+  rowErrors.value.splice(idx, 1)
   if (form.value.rows.length === 0) addRow()
 }
 
@@ -120,14 +138,27 @@ const tax = computed(() => Math.round(subtotal.value * 0.05))
 const total = computed(() => subtotal.value + tax.value)
 
 async function save() {
-  errorMsg.value = ''
-  if (!form.value.client_name.trim()) { errorMsg.value = '請填寫客戶名稱'; return }
-  if (form.value.rows.some(r => !r.equipment_type_id)) { errorMsg.value = '請確保每一行都已選擇設備種類'; return }
+  serverError.value = ''
+
+  // 驗證頂層欄位（await 確保錯誤狀態已更新）
+  const { valid } = await validate()
+
+  // 驗證每行的設備選擇
+  let rowsValid = true
+  rowErrors.value = form.value.rows.map(r => {
+    if (!r.equipment_type_id) { rowsValid = false; return '請選擇設備品項' }
+    return ''
+  })
+
+  if (!valid || !rowsValid) return
 
   saving.value = true
   try {
     const payload = {
-      ...form.value,
+      client_name: clientName.value,
+      year_month: yearMonth.value,
+      vendor: form.value.vendor,
+      site_name: form.value.site_name,
       rows: form.value.rows
         .filter(r => r.quantity || r.start_date || r.delivery_date)
         .map(r => ({
@@ -145,7 +176,7 @@ async function save() {
     successMsg.value = '單據已儲存成功'
     setTimeout(() => router.push('/rentals'), 1000)
   } catch (e) {
-    errorMsg.value = e.message
+    serverError.value = e.message
   } finally {
     saving.value = false
   }
@@ -170,20 +201,11 @@ async function save() {
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <AppButton
-          variant="primary"
-          :loading="saving"
-          @click="save"
-        >
-          {{ saving ? '正在儲存…' : (isEdit ? '儲存修改' : '建立租賃單') }}
-        </AppButton>
-      </div>
     </div>
 
-    <div v-if="errorMsg" class="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-100 dark:border-red-900 font-semibold flex items-center gap-3 text-sm">
+    <div v-if="serverError" class="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-100 dark:border-red-900 font-semibold flex items-center gap-3 text-sm">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      {{ errorMsg }}
+      {{ serverError }}
     </div>
     <div v-if="successMsg" class="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900 font-semibold flex items-center gap-3 text-sm">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -197,20 +219,45 @@ async function save() {
       </div>
       <div class="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶名稱 *</label>
-          <AppInput v-model="form.client_name" variant="blue" dense placeholder="輸入廠商名稱" />
+          <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+            <span class="text-red-500 text-sm leading-none">*</span>客戶名稱
+          </label>
+          <AutocompleteInput
+            :model-value="clientName"
+            @update:model-value="onClientNameChange"
+            :options="adminStore.allCustomerNames"
+            placeholder="選擇或輸入廠商名稱"
+            variant="blue" dense
+            :class="clientNameError ? '[&_input]:border-red-400 [&_input]:focus:border-red-500' : ''"
+          />
+          <p class="h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+            <template v-if="clientNameError">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ clientNameError }}
+            </template>
+          </p>
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">廠商代號</label>
           <AppInput v-model="form.vendor" variant="blue" dense placeholder="代號" />
+          <p class="h-4"></p>
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地名稱</label>
-          <AppInput v-model="form.site_name" variant="blue" dense placeholder="工程案名" />
+          <AutocompleteInput v-model="form.site_name" :options="adminStore.allSiteNames" placeholder="選擇或輸入工程案名" variant="blue" dense />
+          <p class="h-4"></p>
         </div>
         <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">結帳年月 *</label>
-          <MonthPicker v-model="form.year_month" variant="blue" dense />
+          <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+            <span class="text-red-500 text-sm leading-none">*</span>結帳年月
+          </label>
+          <MonthPicker :model-value="yearMonth" @update:model-value="setYearMonth" variant="blue" dense :class="yearMonthError ? '[&_button]:border-red-400' : ''" />
+          <p class="h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+            <template v-if="yearMonthError">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ yearMonthError }}
+            </template>
+          </p>
         </div>
       </div>
     </section>
@@ -243,10 +290,15 @@ async function save() {
                 <input type="checkbox" v-model="row.is_continued" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer">
               </td>
               <td class="px-2 py-3 w-40">
-                <select v-model="row.equipment_type_id" class="w-full h-9 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 transition-all cursor-pointer font-medium">
+                <select v-model="row.equipment_type_id"
+                  @change="rowErrors[i] = ''"
+                  class="w-full h-9 px-2 bg-white dark:bg-slate-900 border rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 transition-all cursor-pointer font-medium"
+                  :class="rowErrors[i] ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'"
+                >
                   <option value="">選擇...</option>
                   <option v-for="et in equipmentTypes" :key="et.id" :value="et.id">{{ et.name }}</option>
                 </select>
+                <p class="mt-1 h-3.5 text-[10px] font-semibold text-red-500 leading-tight">{{ rowErrors[i] }}</p>
               </td>
               <td class="px-2 py-3 w-44">
                 <DateRangePicker variant="blue"
@@ -312,22 +364,32 @@ async function save() {
       </div>
 
       <!-- 結算區 -->
-      <div class="sticky bottom-0 z-10 p-8 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 flex flex-col items-end gap-3 border-t border-slate-200 dark:border-slate-700 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)] pb-10">
-        <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
-          <span class="text-xs font-semibold uppercase tracking-wide">應收小計（未稅）</span>
-          <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(subtotal) }} <small class="text-xs font-normal">元</small></span>
-        </div>
-        <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
-          <span class="text-xs font-semibold uppercase tracking-wide">營業稅額（5%）</span>
-          <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(tax) }} <small class="text-xs font-normal">元</small></span>
-        </div>
-        <div class="w-48 h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
-        <div class="flex items-center gap-12">
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 bg-blue-600 dark:bg-blue-500 rounded-full animate-pulse"></span>
-            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">含稅總計</span>
+      <div class="sticky bottom-0 z-10 px-8 py-5 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 flex items-end justify-between gap-6 border-t border-slate-200 dark:border-slate-700 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)]">
+        <!-- 送出按鈕 -->
+        <AppButton variant="primary" size="lg" :loading="saving" @click="save">
+          <template #icon>
+            <svg v-if="!saving" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          </template>
+          {{ saving ? '正在儲存…' : (isEdit ? '儲存修改' : '建立租賃單') }}
+        </AppButton>
+        <!-- 金額摘要 -->
+        <div class="flex flex-col items-end gap-2">
+          <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
+            <span class="text-xs font-semibold uppercase tracking-wide">應收小計（未稅）</span>
+            <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(subtotal) }} <small class="text-xs font-normal">元</small></span>
           </div>
-          <span class="text-3xl font-bold text-blue-600 dark:text-blue-400 font-mono-num w-32 text-right">{{ fmt(total) }} <small class="text-sm font-semibold opacity-60">元</small></span>
+          <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
+            <span class="text-xs font-semibold uppercase tracking-wide">營業稅額（5%）</span>
+            <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(tax) }} <small class="text-xs font-normal">元</small></span>
+          </div>
+          <div class="w-48 h-px bg-slate-200 dark:bg-slate-700 my-0.5"></div>
+          <div class="flex items-center gap-12">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 bg-blue-600 dark:bg-blue-500 rounded-full animate-pulse"></span>
+              <span class="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">含稅總計</span>
+            </div>
+            <span class="text-3xl font-bold text-blue-600 dark:text-blue-400 font-mono-num w-32 text-right">{{ fmt(total) }} <small class="text-sm font-semibold opacity-60">元</small></span>
+          </div>
         </div>
       </div>
     </section>

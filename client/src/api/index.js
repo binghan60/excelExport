@@ -19,7 +19,17 @@ export const api = {
   getEquipmentTypes: () => request('GET', '/inventory/equipment-types'),
   adjustInventory: (body) => request('POST', '/inventory/adjust', body),
   addEquipmentType: (body) => request('POST', '/inventory/type', body),
+  deleteEquipmentType: (id) => request('DELETE', `/inventory/type/${id}`),
   getInventoryLogs: () => request('GET', '/inventory/logs'),
+
+  // 後台管理
+  getCustomers: () => request('GET', '/admin/customers'),
+  addCustomer: (body) => request('POST', '/admin/customers', body),
+  deleteCustomer: (id) => request('DELETE', `/admin/customers/${id}`),
+  getSites: () => request('GET', '/admin/sites'),
+  addSite: (body) => request('POST', '/admin/sites', body),
+  deleteSite: (id) => request('DELETE', `/admin/sites/${id}`),
+  importAdminFromInvoices: () => request('POST', '/admin/import-from-invoices'),
 
   // 租賃請款單
   getRentals: () => request('GET', '/rentals'),

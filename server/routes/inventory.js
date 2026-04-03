@@ -78,6 +78,16 @@ router.post('/type', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+// DELETE /api/inventory/type/:id — 刪除設備種類
+router.delete('/type/:id', async (req, res) => {
+  try {
+    const et = await EquipmentType.findById(req.params.id)
+    if (!et) return res.status(404).json({ error: '找不到設備種類' })
+    await EquipmentType.findByIdAndDelete(req.params.id)
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 // POST /api/inventory/adjust
 router.post('/adjust', async (req, res) => {
   try {

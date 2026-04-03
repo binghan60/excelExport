@@ -1,27 +1,38 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useField, useForm } from 'vee-validate'
+import * as yup from 'yup'
 import { api } from '../api/index.js'
 import { useRentalsStore } from '../stores/rentals.js'
+import { useAdminStore } from '../stores/admin.js'
 import MonthPicker from '../components/MonthPicker.vue'
 import DatePicker from '../components/DatePicker.vue'
 import NumberInput from '../components/base/NumberInput.vue'
 import AppInput from '../components/base/AppInput.vue'
 import AppButton from '../components/base/AppButton.vue'
+import AutocompleteInput from '../components/base/AutocompleteInput.vue'
 
 const router = useRouter()
 const route = useRoute()
 const store = useRentalsStore()
+const adminStore = useAdminStore()
 
 const saving = ref(false)
-const errorMsg = ref('')
+const serverError = ref('')
 const successMsg = ref('')
 
 const todayStr = new Date().toISOString().slice(0, 10)
 
+// ── VeeValidate ───────────────────────────────────────────
+const { validate } = useForm()
+const { value: clientName, errorMessage: clientNameError, handleChange: onClientNameChange, setValue: setClientName } =
+  useField('client_name', yup.string().required('請填寫客戶名稱'))
+const { value: yearMonth, errorMessage: yearMonthError, setValue: setYearMonth } =
+  useField('year_month', yup.string().required('請選擇請款年月'))
+
 const form = ref({
-  client_name: '',
-  year_month: '',
+  site_name: '',
   rows: [{
     date: todayStr, route_from: '', route_to: '', cargo: '', amount: '', notes: '',
   }],
@@ -31,13 +42,15 @@ const editId = computed(() => route.params.id ? String(route.params.id) : null)
 const isEdit = computed(() => !!editId.value)
 
 onMounted(async () => {
+  await adminStore.fetchAll()
   const now = new Date()
-  form.value.year_month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  setYearMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
   if (isEdit.value) {
     const data = await api.getFreight(editId.value)
-    form.value.client_name = data.client_name
-    form.value.year_month = data.year_month
+    setClientName(data.client_name)
+    setYearMonth(data.year_month)
+    form.value.site_name = data.site_name || ''
     form.value.rows = []
     data.rows.forEach((r) => {
       form.value.rows.push({
@@ -87,8 +100,6 @@ function swapRoute(idx) {
   curr.route_to = tmp
 }
 
-
-
 function addRow() {
   const lastRow = form.value.rows[form.value.rows.length - 1]
   form.value.rows.push({
@@ -98,14 +109,16 @@ function addRow() {
 }
 
 async function save() {
-  errorMsg.value = ''
-  if (!form.value.client_name.trim()) { errorMsg.value = '請填寫客戶名稱'; return }
-  if (!form.value.year_month) { errorMsg.value = '請填寫年月'; return }
+  serverError.value = ''
+  const { valid } = await validate()
+  if (!valid) return
 
   saving.value = true
   try {
     const payload = {
-      ...form.value,
+      client_name: clientName.value,
+      year_month: yearMonth.value,
+      site_name: form.value.site_name,
       rows: form.value.rows
         .filter(r => r.date || r.route_from || r.route_to || r.amount)
         .map(r => ({ ...r, amount: r.amount !== '' ? Number(r.amount) : null })),
@@ -118,7 +131,7 @@ async function save() {
     successMsg.value = '單據已儲存'
     setTimeout(() => router.push('/freights'), 1000)
   } catch (e) {
-    errorMsg.value = e.message
+    serverError.value = e.message
   } finally {
     saving.value = false
   }
@@ -143,21 +156,12 @@ async function save() {
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <AppButton
-          variant="amber"
-          :loading="saving"
-          @click="save"
-        >
-          {{ saving ? '正在儲存…' : (isEdit ? '儲存修改' : '登錄運費單') }}
-        </AppButton>
-      </div>
     </div>
 
     <!-- 訊息提示 -->
-    <div v-if="errorMsg" class="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-100 dark:border-red-900 font-semibold flex items-center gap-3 text-sm">
+    <div v-if="serverError" class="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-100 dark:border-red-900 font-semibold flex items-center gap-3 text-sm">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      {{ errorMsg }}
+      {{ serverError }}
     </div>
     <div v-if="successMsg" class="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900 font-semibold flex items-center gap-3 text-sm">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -170,13 +174,41 @@ async function save() {
         <h3 class="text-base font-semibold text-slate-700 dark:text-slate-200">基本資料</h3>
       </div>
       <div class="p-4 md:p-6 flex flex-wrap gap-4 md:gap-6">
-        <div class="space-y-1.5 w-full md:w-80">
-          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶名稱 *</label>
-          <AppInput v-model="form.client_name" variant="amber" dense placeholder="輸入請款廠商名稱" />
+        <div class="space-y-1.5 w-full md:w-72">
+          <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+            <span class="text-red-500 text-sm leading-none">*</span>客戶名稱
+          </label>
+          <AutocompleteInput
+            :model-value="clientName"
+            @update:model-value="onClientNameChange"
+            :options="adminStore.allCustomerNames"
+            placeholder="選擇或輸入請款廠商名稱"
+            variant="amber" dense
+            :class="clientNameError ? '[&_input]:border-red-400 [&_input]:focus:border-red-500' : ''"
+          />
+          <p class="h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+            <template v-if="clientNameError">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ clientNameError }}
+            </template>
+          </p>
+        </div>
+        <div class="space-y-1.5 w-full md:w-72">
+          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地名稱</label>
+          <AutocompleteInput v-model="form.site_name" :options="adminStore.allSiteNames" placeholder="選擇或輸入工程案名" variant="amber" dense />
+          <p class="h-4"></p>
         </div>
         <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">請款年月 *</label>
-          <MonthPicker v-model="form.year_month" variant="amber" dense />
+          <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+            <span class="text-red-500 text-sm leading-none">*</span>請款年月
+          </label>
+          <MonthPicker :model-value="yearMonth" @update:model-value="setYearMonth" variant="amber" dense :class="yearMonthError ? '[&_button]:border-red-400' : ''" />
+          <p class="h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+            <template v-if="yearMonthError">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ yearMonthError }}
+            </template>
+          </p>
         </div>
       </div>
     </section>
@@ -260,22 +292,32 @@ async function save() {
       </div>
 
       <!-- 結算 -->
-      <div class="sticky bottom-0 z-10 p-6 md:p-8 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-md flex flex-col items-end gap-3 border-t border-slate-200 dark:border-slate-700 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
-        <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
-          <span class="text-xs font-semibold uppercase tracking-wide">運費小計（未稅）</span>
-          <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(subtotal) }} <small class="text-xs font-normal">元</small></span>
-        </div>
-        <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
-          <span class="text-xs font-semibold uppercase tracking-wide">營業稅額（5%）</span>
-          <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(tax) }} <small class="text-xs font-normal">元</small></span>
-        </div>
-        <div class="w-48 h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
-        <div class="flex items-center gap-12">
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
-            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">含稅總計</span>
+      <div class="sticky bottom-0 z-10 px-8 py-5 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-md flex items-end justify-between gap-6 border-t border-slate-200 dark:border-slate-700 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
+        <!-- 送出按鈕 -->
+        <AppButton variant="amber" size="lg" :loading="saving" @click="save">
+          <template #icon>
+            <svg v-if="!saving" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          </template>
+          {{ saving ? '正在儲存…' : (isEdit ? '儲存修改' : '登錄運費單') }}
+        </AppButton>
+        <!-- 金額摘要 -->
+        <div class="flex flex-col items-end gap-2">
+          <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
+            <span class="text-xs font-semibold uppercase tracking-wide">運費小計（未稅）</span>
+            <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(subtotal) }} <small class="text-xs font-normal">元</small></span>
           </div>
-          <span class="text-3xl font-bold text-slate-900 dark:text-slate-100 font-mono-num w-32 text-right">{{ fmt(total) }} <small class="text-sm font-semibold opacity-60">元</small></span>
+          <div class="flex items-center gap-12 text-slate-500 dark:text-slate-400">
+            <span class="text-xs font-semibold uppercase tracking-wide">營業稅額（5%）</span>
+            <span class="text-lg font-semibold font-mono-num text-slate-600 dark:text-slate-300 w-32 text-right">{{ fmt(tax) }} <small class="text-xs font-normal">元</small></span>
+          </div>
+          <div class="w-48 h-px bg-slate-200 dark:bg-slate-700 my-0.5"></div>
+          <div class="flex items-center gap-12">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+              <span class="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">含稅總計</span>
+            </div>
+            <span class="text-3xl font-bold text-slate-900 dark:text-slate-100 font-mono-num w-32 text-right">{{ fmt(total) }} <small class="text-sm font-semibold opacity-60">元</small></span>
+          </div>
         </div>
       </div>
     </section>

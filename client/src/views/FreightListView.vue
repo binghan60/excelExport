@@ -2,39 +2,28 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRentalsStore } from '../stores/rentals.js'
+import { useAdminStore } from '../stores/admin.js'
 import AppButton from '../components/base/AppButton.vue'
 import AppCard from '../components/base/AppCard.vue'
 import MonthPicker from '../components/MonthPicker.vue'
 
 const router = useRouter()
 const store = useRentalsStore()
+const adminStore = useAdminStore()
 
 const currentMonth = new Date().toISOString().slice(0, 7)
 const filters = ref({ client: '', site: '', month: currentMonth })
 const expandedId = ref(null)
 
-onMounted(() => store.fetchAll())
-
-const options = computed(() => {
-  const clients = new Set(), sites = new Set()
-  store.freights.forEach(f => {
-    if (f.client_name) clients.add(f.client_name)
-    if (Array.isArray(f.rows)) {
-      f.rows.forEach(r => {
-        if (r.route_from) sites.add(r.route_from)
-        if (r.route_to) sites.add(r.route_to)
-      })
-    }
-  })
-  return { clients: [...clients].sort(), sites: [...sites].sort() }
+onMounted(async () => {
+  await Promise.all([store.fetchAll(), adminStore.fetchAll()])
 })
 
-const filteredFreights = computed(() => store.freights.filter(f => {
-  const hasSiteMatch = !filters.value.site || (f.rows && f.rows.some(r => r.route_from === filters.value.site || r.route_to === filters.value.site))
-  return (!filters.value.client || f.client_name === filters.value.client) &&
-         hasSiteMatch &&
-         (!filters.value.month || f.year_month === filters.value.month)
-}))
+const filteredFreights = computed(() => store.freights.filter(f =>
+  (!filters.value.client || f.client_name === filters.value.client) &&
+  (!filters.value.site   || f.site_name   === filters.value.site) &&
+  (!filters.value.month  || f.year_month  === filters.value.month)
+))
 
 function toggleExpand(id) { expandedId.value = expandedId.value === id ? null : id }
 async function remove(id) { if (confirm('確定要刪除這筆運費請款單？')) await store.deleteFreight(id) }
@@ -68,14 +57,14 @@ function rowSubtotal(f) {
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶</label>
           <select v-model="filters.client" class="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-amber-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
             <option value="">全部客戶</option>
-            <option v-for="c in options.clients" :key="c" :value="c">{{ c }}</option>
+            <option v-for="name in adminStore.allCustomerNames" :key="name" :value="name">{{ name }}</option>
           </select>
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地</label>
           <select v-model="filters.site" class="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-amber-500 outline-none text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
             <option value="">全部工地</option>
-            <option v-for="s in options.sites" :key="s" :value="s">{{ s }}</option>
+            <option v-for="name in adminStore.allSiteNames" :key="name" :value="name">{{ name }}</option>
           </select>
         </div>
         <div class="space-y-1.5">
@@ -98,14 +87,15 @@ function rowSubtotal(f) {
       <div
         v-for="f in filteredFreights"
         :key="f.id"
-        class="group bg-white dark:bg-slate-900 border rounded-2xl overflow-hidden transition-all duration-300 ease-out shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)]"
+        class="group bg-white dark:bg-slate-900 border rounded-2xl transition-all duration-300 ease-out shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)]"
         :class="expandedId === f.id
-          ? 'border-amber-400/70 dark:border-amber-600/70 ring-4 ring-amber-50 dark:ring-amber-950/40 shadow-[0_4px_16px_0_rgba(217,119,6,0.08)]'
-          : 'border-slate-200/60 dark:border-slate-700/60 hover:border-amber-300/70 dark:hover:border-amber-700/70 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'"
+          ? 'overflow-clip border-amber-400/70 dark:border-amber-600/70 ring-4 ring-amber-50 dark:ring-amber-950/40 shadow-[0_4px_16px_0_rgba(217,119,6,0.08)]'
+          : 'overflow-hidden border-slate-200/60 dark:border-slate-700/60 hover:border-amber-300/70 dark:hover:border-amber-700/70 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'"
       >
         <!-- ── 摘要列（可點擊展開） ── -->
         <div
-          class="px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer select-none"
+          class="px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer select-none transition-colors"
+          :class="expandedId === f.id ? 'sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-100/80 dark:border-slate-700/60' : ''"
           @click="toggleExpand(f.id)"
         >
           <div class="flex items-center gap-4">
