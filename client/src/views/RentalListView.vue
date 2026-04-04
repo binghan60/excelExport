@@ -113,8 +113,8 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
       >
         <!-- 簡項視圖 -->
         <div
-          class="px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer transition-colors"
-          :class="expandedId === inv.id ? 'sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-100/80 dark:border-slate-700/60' : ''"
+          class="px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer transition-colors border-b"
+          :class="expandedId === inv.id ? 'sticky top-0 z-10 bg-white dark:bg-slate-900 border-slate-100/80 dark:border-slate-700/60' : 'border-transparent'"
           @click="toggleExpand(inv.id)"
         >
           <div class="flex items-center gap-4">
@@ -187,7 +187,7 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
           enter-from-class="opacity-0 -translate-y-2"
           enter-to-class="opacity-100 translate-y-0"
         >
-          <div v-if="expandedId === inv.id" class="px-6 pb-6 pt-0 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/30 dark:bg-slate-800/20">
+          <div v-if="expandedId === inv.id" class="px-6 pb-6 pt-0 bg-slate-50/30 dark:bg-slate-800/20">
             <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 mt-4">
               <table class="w-full border-collapse">
                 <thead>

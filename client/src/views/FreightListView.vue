@@ -103,8 +103,8 @@ function rowSubtotal(f) {
       >
         <!-- ── 摘要列（可點擊展開） ── -->
         <div
-          class="px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer select-none transition-colors"
-          :class="expandedId === f.id ? 'sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-100/80 dark:border-slate-700/60' : ''"
+          class="px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer select-none transition-colors border-b"
+          :class="expandedId === f.id ? 'sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-100/80 dark:border-slate-700/60' : 'border-transparent'"
           @click="toggleExpand(f.id)"
         >
           <div class="flex items-center gap-4">
