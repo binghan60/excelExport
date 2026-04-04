@@ -296,7 +296,20 @@ async function save() {
           <tbody class="divide-y divide-slate-50 dark:divide-slate-800 [&_td]:align-top">
             <tr v-for="(row, i) in form.rows" :key="i" class="hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition-colors">
               <td class="px-2 py-3 text-center">
-                <input type="checkbox" v-model="row.is_continued" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer">
+                <label class="inline-flex items-center justify-center h-9 cursor-pointer">
+                  <input type="checkbox" v-model="row.is_continued" class="sr-only">
+                  <div
+                    class="w-[18px] h-[18px] rounded border-2 flex items-center justify-center transition-all duration-150"
+                    :class="row.is_continued
+                      ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-500'
+                      : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'"
+                  >
+                    <svg v-show="row.is_continued" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                </label>
+                <p class="mt-1 h-4"></p>
               </td>
               <td class="px-2 py-3 w-40">
                 <select v-model="row.equipment_type_id"
@@ -307,7 +320,12 @@ async function save() {
                   <option value="">請選擇</option>
                   <option v-for="et in equipmentTypes" :key="et.id" :value="et.id">{{ et.name }}</option>
                 </select>
-                <p class="mt-1 h-4 text-[10px] font-semibold text-red-500 leading-tight">{{ rowErrors[i] }}</p>
+                <p class="mt-1 h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+                  <template v-if="rowErrors[i]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {{ rowErrors[i] }}
+                  </template>
+                </p>
               </td>
               <td class="px-2 py-3 w-44">
                 <DateRangePicker variant="blue"

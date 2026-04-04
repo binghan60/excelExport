@@ -1,5 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useField, useForm } from 'vee-validate'
+import * as yup from 'yup'
 import { useInventoryStore } from '../stores/inventory.js'
 import { useAdminStore } from '../stores/admin.js'
 import { useSwal } from '../composables/useSwal.js'
@@ -72,19 +74,28 @@ async function handleConfirmDelete() {
 
 // 設備 Modal
 const showEquipModal = ref(false)
-const addEquipForm = ref({ name: '', unit: '個' })
 const addEquipSaving = ref(false)
-const addEquipError = ref('')
+
+const { validateField: validateModalField } = useForm()
+const { value: equipName, errorMessage: equipNameError, resetField: resetEquipName } =
+  useField('equip_name', yup.string().required('請填寫設備名稱'), { initialValue: '' })
+const { value: equipUnit, errorMessage: equipUnitError, resetField: resetEquipUnit } =
+  useField('equip_unit', yup.string().required('請填寫計量單位'), { initialValue: '個' })
+const { value: newCustomer, errorMessage: customerError, resetField: resetCustomerField } =
+  useField('new_customer', yup.string().required('請填寫客戶名稱'), { initialValue: '' })
+const { value: newSite, errorMessage: siteError, resetField: resetSiteField } =
+  useField('new_site', yup.string().required('請填寫工地名稱'), { initialValue: '' })
 
 function openEquipModal() {
-  addEquipForm.value = { name: '', unit: '個' }
-  addEquipError.value = ''
+  resetEquipName()
+  resetEquipUnit()
   showEquipModal.value = true
 }
 
 function closeEquipModal() {
   showEquipModal.value = false
-  addEquipError.value = ''
+  resetEquipName()
+  resetEquipUnit()
 }
 
 function initRow(id) {
@@ -118,19 +129,20 @@ async function confirmAdjust(stock) {
 }
 
 async function addEquipmentType() {
-  addEquipError.value = ''
-  if (!addEquipForm.value.name.trim() || !addEquipForm.value.unit.trim()) {
-    addEquipError.value = '請完整填寫名稱與單位'; return
-  }
+  const [r1, r2] = await Promise.all([
+    validateModalField('equip_name'),
+    validateModalField('equip_unit'),
+  ])
+  if (!r1.valid || !r2.valid) return
   addEquipSaving.value = true
   try {
-    await api.addEquipmentType({ name: addEquipForm.value.name.trim(), unit: addEquipForm.value.unit.trim() })
+    await api.addEquipmentType({ name: equipName.value.trim(), unit: equipUnit.value.trim() })
     await store.fetchInventory()
     logs.value = await api.getInventoryLogs()
     store.stocks.forEach(s => { if (!rowEdits[s.id]) initRow(s.id) })
     closeEquipModal()
   } catch (e) {
-    addEquipError.value = e.message
+    swal.error(e.message)
   } finally {
     addEquipSaving.value = false
   }
@@ -138,9 +150,7 @@ async function addEquipmentType() {
 
 // ── 客戶 Tab ──────────────────────────────────────────────
 const showCustomerModal = ref(false)
-const newCustomer = ref('')
 const customerSaving = ref(false)
-const customerError = ref('')
 const importMsg = ref('')
 
 async function importFromInvoices() {
@@ -156,18 +166,18 @@ async function importFromInvoices() {
   }
 }
 
-function openCustomerModal() { newCustomer.value = ''; customerError.value = ''; showCustomerModal.value = true }
-function closeCustomerModal() { showCustomerModal.value = false; customerError.value = '' }
+function openCustomerModal() { resetCustomerField(); showCustomerModal.value = true }
+function closeCustomerModal() { showCustomerModal.value = false; resetCustomerField() }
 
 async function addCustomer() {
-  customerError.value = ''
-  if (!newCustomer.value.trim()) { customerError.value = '請填寫客戶名稱'; return }
+  const { valid } = await validateModalField('new_customer')
+  if (!valid) return
   customerSaving.value = true
   try {
     await adminStore.addCustomer(newCustomer.value.trim())
     closeCustomerModal()
   } catch (e) {
-    customerError.value = e.message
+    swal.error(e.message)
   } finally {
     customerSaving.value = false
   }
@@ -175,22 +185,20 @@ async function addCustomer() {
 
 // ── 工地 Tab ──────────────────────────────────────────────
 const showSiteModal = ref(false)
-const newSite = ref('')
 const siteSaving = ref(false)
-const siteError = ref('')
 
-function openSiteModal() { newSite.value = ''; siteError.value = ''; showSiteModal.value = true }
-function closeSiteModal() { showSiteModal.value = false; siteError.value = '' }
+function openSiteModal() { resetSiteField(); showSiteModal.value = true }
+function closeSiteModal() { showSiteModal.value = false; resetSiteField() }
 
 async function addSite() {
-  siteError.value = ''
-  if (!newSite.value.trim()) { siteError.value = '請填寫工地名稱'; return }
+  const { valid } = await validateModalField('new_site')
+  if (!valid) return
   siteSaving.value = true
   try {
     await adminStore.addSite(newSite.value.trim())
     closeSiteModal()
   } catch (e) {
-    siteError.value = e.message
+    swal.error(e.message)
   } finally {
     siteSaving.value = false
   }
@@ -304,12 +312,20 @@ function fmtDate(d) {
                   <td colspan="5" class="px-8 py-6 border-t-0">
                     <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-4 sm:gap-6">
                       <div class="space-y-1.5">
-                        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">異動數量（正進負出）</label>
+                        <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                          <span class="text-red-500 text-sm leading-none">*</span>異動數量（正進負出）
+                        </label>
                         <div class="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-1 rounded-lg">
                           <button @click="rowEdits[s.id].amount = String((Number(rowEdits[s.id].amount)||0) - 1)" aria-label="減少數量" title="減少數量" class="w-9 h-9 font-semibold text-slate-400 hover:text-red-500 transition-colors text-lg">－</button>
                           <input v-model="rowEdits[s.id].amount" type="number" class="w-24 text-center text-base font-bold outline-none bg-transparent text-slate-800 dark:text-slate-200" placeholder="0">
                           <button @click="rowEdits[s.id].amount = String((Number(rowEdits[s.id].amount)||0) + 1)" aria-label="增加數量" title="增加數量" class="w-9 h-9 font-semibold text-slate-400 hover:text-emerald-500 transition-colors text-lg">＋</button>
                         </div>
+                        <p class="h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+                          <template v-if="rowEdits[s.id].error">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            {{ rowEdits[s.id].error }}
+                          </template>
+                        </p>
                       </div>
                       <div class="space-y-1.5 flex-1 max-w-md">
                         <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">異動備註</label>
@@ -318,7 +334,6 @@ function fmtDate(d) {
                       <div class="pt-5">
                         <AppButton variant="emerald" @click="confirmAdjust(s)" :disabled="rowEdits[s.id].saving || !rowEdits[s.id].amount">確認更新</AppButton>
                       </div>
-                      <p v-if="rowEdits[s.id].error" class="text-xs font-semibold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">{{ rowEdits[s.id].error }}</p>
                     </div>
                   </td>
                 </tr>
@@ -495,21 +510,7 @@ function fmtDate(d) {
 
   <!-- ══ Modal：新增設備 ══ -->
   <Teleport to="body">
-    <Transition
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition duration-150 ease-in"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div v-if="showEquipModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" @click.self="closeEquipModal">
-        <Transition
-          enter-active-class="transition duration-200 ease-out"
-          enter-from-class="scale-95 opacity-0"
-          enter-to-class="scale-100 opacity-100"
-          appear
-        >
+      <div v-if="showEquipModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" @click.self="closeEquipModal">
           <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_60px_0_rgba(0,0,0,0.15)] border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
             <!-- Modal Header -->
             <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
@@ -524,25 +525,42 @@ function fmtDate(d) {
             <!-- Modal Body -->
             <div class="px-6 py-6 space-y-4">
               <div class="space-y-1.5">
-                <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">設備名稱 *</label>
+                <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                  <span class="text-red-500 text-sm leading-none">*</span>設備名稱
+                </label>
                 <input
-                  v-model="addEquipForm.name"
+                  v-model="equipName"
                   @keydown.enter="addEquipmentType"
                   autofocus
-                  class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-base text-slate-700 dark:text-slate-200 transition-all"
+                  class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/10 text-base text-slate-700 dark:text-slate-200 transition-all"
+                  :class="equipNameError ? 'border border-red-400 focus:border-red-500' : 'border border-slate-200 dark:border-slate-600 focus:border-emerald-500'"
                   placeholder="例如：H型鋼 300x300"
                 >
+                <p class="h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+                  <template v-if="equipNameError">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {{ equipNameError }}
+                  </template>
+                </p>
               </div>
               <div class="space-y-1.5">
-                <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">計量單位 *</label>
+                <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                  <span class="text-red-500 text-sm leading-none">*</span>計量單位
+                </label>
                 <input
-                  v-model="addEquipForm.unit"
+                  v-model="equipUnit"
                   @keydown.enter="addEquipmentType"
-                  class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-base text-slate-700 dark:text-slate-200 transition-all"
+                  class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/10 text-base text-slate-700 dark:text-slate-200 transition-all"
+                  :class="equipUnitError ? 'border border-red-400 focus:border-red-500' : 'border border-slate-200 dark:border-slate-600 focus:border-emerald-500'"
                   placeholder="支 / 片 / 個"
                 >
+                <p class="h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+                  <template v-if="equipUnitError">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {{ equipUnitError }}
+                  </template>
+                </p>
               </div>
-              <p v-if="addEquipError" class="text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900 px-3 py-2 rounded-lg">{{ addEquipError }}</p>
             </div>
             <!-- Modal Footer -->
             <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-800/20">
@@ -552,28 +570,12 @@ function fmtDate(d) {
               </AppButton>
             </div>
           </div>
-        </Transition>
-      </div>
-    </Transition>
+        </div>
   </Teleport>
 
   <!-- ══ Modal：新增客戶 ══ -->
   <Teleport to="body">
-    <Transition
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition duration-150 ease-in"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div v-if="showCustomerModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" @click.self="closeCustomerModal">
-        <Transition
-          enter-active-class="transition duration-200 ease-out"
-          enter-from-class="scale-95 opacity-0"
-          enter-to-class="scale-100 opacity-100"
-          appear
-        >
+      <div v-if="showCustomerModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" @click.self="closeCustomerModal">
           <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_60px_0_rgba(0,0,0,0.15)] border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
             <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
               <div class="flex items-center gap-2.5">
@@ -586,16 +588,24 @@ function fmtDate(d) {
             </div>
             <div class="px-6 py-6 space-y-4">
               <div class="space-y-1.5">
-                <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶名稱 *</label>
+                <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                  <span class="text-red-500 text-sm leading-none">*</span>客戶名稱
+                </label>
                 <input
                   v-model="newCustomer"
                   @keydown.enter="addCustomer"
                   autofocus
-                  class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-base text-slate-700 dark:text-slate-200 transition-all"
+                  class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 text-base text-slate-700 dark:text-slate-200 transition-all"
+                  :class="customerError ? 'border border-red-400 focus:border-red-500' : 'border border-slate-200 dark:border-slate-600 focus:border-blue-500'"
                   placeholder="輸入客戶名稱"
                 >
+                <p class="h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+                  <template v-if="customerError">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {{ customerError }}
+                  </template>
+                </p>
               </div>
-              <p v-if="customerError" class="text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900 px-3 py-2 rounded-lg">{{ customerError }}</p>
             </div>
             <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-800/20">
               <button @click="closeCustomerModal" class="h-10 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">取消</button>
@@ -604,28 +614,12 @@ function fmtDate(d) {
               </AppButton>
             </div>
           </div>
-        </Transition>
-      </div>
-    </Transition>
+        </div>
   </Teleport>
 
   <!-- ══ Modal：新增工地 ══ -->
   <Teleport to="body">
-    <Transition
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition duration-150 ease-in"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div v-if="showSiteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" @click.self="closeSiteModal">
-        <Transition
-          enter-active-class="transition duration-200 ease-out"
-          enter-from-class="scale-95 opacity-0"
-          enter-to-class="scale-100 opacity-100"
-          appear
-        >
+      <div v-if="showSiteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" @click.self="closeSiteModal">
           <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_60px_0_rgba(0,0,0,0.15)] border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
             <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
               <div class="flex items-center gap-2.5">
@@ -638,16 +632,24 @@ function fmtDate(d) {
             </div>
             <div class="px-6 py-6 space-y-4">
               <div class="space-y-1.5">
-                <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地名稱 *</label>
+                <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                  <span class="text-red-500 text-sm leading-none">*</span>工地名稱
+                </label>
                 <input
                   v-model="newSite"
                   @keydown.enter="addSite"
                   autofocus
-                  class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 text-base text-slate-700 dark:text-slate-200 transition-all"
+                  class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/10 text-base text-slate-700 dark:text-slate-200 transition-all"
+                  :class="siteError ? 'border border-red-400 focus:border-red-500' : 'border border-slate-200 dark:border-slate-600 focus:border-amber-500'"
                   placeholder="輸入工地名稱"
                 >
+                <p class="h-4 text-xs font-semibold text-red-500 flex items-center gap-1">
+                  <template v-if="siteError">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {{ siteError }}
+                  </template>
+                </p>
               </div>
-              <p v-if="siteError" class="text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900 px-3 py-2 rounded-lg">{{ siteError }}</p>
             </div>
             <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-800/20">
               <button @click="closeSiteModal" class="h-10 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">取消</button>
@@ -656,8 +658,6 @@ function fmtDate(d) {
               </AppButton>
             </div>
           </div>
-        </Transition>
-      </div>
-    </Transition>
+        </div>
   </Teleport>
 </template>
