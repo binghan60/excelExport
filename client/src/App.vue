@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTheme } from './composables/useTheme.js'
 
@@ -7,6 +7,21 @@ const route = useRoute()
 const { isDark, toggle } = useTheme()
 
 const sidebarOpen = ref(false)
+const isOnline = ref(navigator.onLine)
+
+function updateOnlineStatus() {
+  isOnline.value = navigator.onLine
+}
+
+onMounted(() => {
+  window.addEventListener('online', updateOnlineStatus)
+  window.addEventListener('offline', updateOnlineStatus)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('online', updateOnlineStatus)
+  window.removeEventListener('offline', updateOnlineStatus)
+})
 
 // 切換路由時自動收合手機側邊欄
 watch(() => route.path, () => { sidebarOpen.value = false })
@@ -113,7 +128,7 @@ const logoTextClasses = {
         </div>
         <!-- 手機關閉按鈕 -->
         <button
-          class="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          class="md:hidden w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 active:scale-[0.95]"
           @click="sidebarOpen = false"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -159,8 +174,8 @@ const logoTextClasses = {
         <div class="flex items-center gap-3">
           <!-- 連線狀態 -->
           <div class="hidden sm:flex items-center gap-2">
-            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-            <span class="text-xs font-medium text-slate-400 dark:text-slate-500">連線正常</span>
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="isOnline ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+            <span class="text-xs font-medium text-slate-400 dark:text-slate-500">{{ isOnline ? '連線正常' : '連線中斷' }}</span>
           </div>
           <div class="hidden sm:block h-4 w-px bg-slate-200/80 dark:bg-slate-700/80 mx-1"></div>
           <!-- 明暗切換 -->

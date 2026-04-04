@@ -116,7 +116,7 @@ const activeCls = computed(() => ({
         <div
           v-if="isOpen && filtered.length > 0"
           :style="dropdownStyle"
-          class="z-9999 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl shadow-[0_8px_24px_-4px_rgba(0,0,0,0.12)] overflow-hidden"
+          class="z-[9999] bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl shadow-[0_8px_24px_-4px_rgba(0,0,0,0.12)] overflow-hidden"
         >
           <ul class="max-h-52 overflow-y-auto py-1">
             <li

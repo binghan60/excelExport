@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useField, useForm } from 'vee-validate'
 import * as yup from 'yup'
+import { useSwal } from '../composables/useSwal.js'
 import { api } from '../api/index.js'
 import { useRentalsStore } from '../stores/rentals.js'
 import { useAdminStore } from '../stores/admin.js'
@@ -13,6 +14,7 @@ import AppInput from '../components/base/AppInput.vue'
 import AppButton from '../components/base/AppButton.vue'
 import AutocompleteInput from '../components/base/AutocompleteInput.vue'
 
+const { fire: swalFire } = useSwal()
 const router = useRouter()
 const route = useRoute()
 const store = useRentalsStore()
@@ -20,7 +22,6 @@ const adminStore = useAdminStore()
 
 const saving = ref(false)
 const serverError = ref('')
-const successMsg = ref('')
 
 const todayStr = new Date().toISOString().slice(0, 10)
 
@@ -114,24 +115,34 @@ async function save() {
   if (!valid) return
 
   saving.value = true
+  const payload = {
+    client_name: clientName.value,
+    year_month: yearMonth.value,
+    site_name: form.value.site_name,
+    rows: form.value.rows
+      .filter(r => r.date || r.route_from || r.route_to || r.amount)
+      .map(r => ({ ...r, amount: r.amount !== '' ? Number(r.amount) : null })),
+  }
+
+  // 先觸發 Store 異動（內含同步 unshift）再跳轉，達成 Optimistic UI
+  const promise = isEdit.value
+    ? store.updateFreight(editId.value, payload)
+    : store.createFreight(payload)
+
+  router.push('/freights')
+
   try {
-    const payload = {
-      client_name: clientName.value,
-      year_month: yearMonth.value,
-      site_name: form.value.site_name,
-      rows: form.value.rows
-        .filter(r => r.date || r.route_from || r.route_to || r.amount)
-        .map(r => ({ ...r, amount: r.amount !== '' ? Number(r.amount) : null })),
-    }
-    if (isEdit.value) {
-      await store.updateFreight(editId.value, payload)
-    } else {
-      await store.createFreight(payload)
-    }
-    successMsg.value = '單據已儲存'
-    setTimeout(() => router.push('/freights'), 1000)
+    await promise
+    swalFire({
+      icon: 'success',
+      title: isEdit.value ? '修改完成' : '建立成功',
+      text: '運費請款單已儲存',
+      timer: 1500,
+      showConfirmButton: false,
+      timerProgressBar: true,
+    })
   } catch (e) {
-    serverError.value = e.message
+    swalFire({ icon: 'error', title: '儲存失敗', text: e.message || '請稍後再試' })
   } finally {
     saving.value = false
   }
@@ -144,15 +155,18 @@ async function save() {
     <!-- 頂部操作列 -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="flex items-center gap-4">
-        <button
+        <AppButton
+          variant="secondary"
           @click="router.push('/freights')"
-          class="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-300/60 dark:hover:border-amber-700/60 transition-all duration-300 ease-out active:scale-[0.95] shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]"
+          class="w-10 h-10 !p-0"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
+          <template #icon>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </template>
+        </AppButton>
         <div class="space-y-1">
           <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{{ isEdit ? '修改運費請款' : '登錄新運費單' }}</h1>
-          <p class="text-sm font-medium text-slate-400 dark:text-slate-500">運費請款明細資料輸入</p>
+          <p class="text-base font-medium text-slate-400 dark:text-slate-500">運費請款明細資料輸入</p>
         </div>
       </div>
 
@@ -163,11 +177,6 @@ async function save() {
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       {{ serverError }}
     </div>
-    <div v-if="successMsg" class="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900 font-semibold flex items-center gap-3 text-sm">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      {{ successMsg }}
-    </div>
-
     <!-- 基本資料 -->
     <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)] transition-all duration-300">
       <div class="px-6 py-4 border-b border-slate-100/80 dark:border-slate-700/60">
@@ -182,7 +191,7 @@ async function save() {
             :model-value="clientName"
             @update:model-value="onClientNameChange"
             :options="adminStore.allCustomerNames"
-            placeholder="選擇或輸入請款廠商名稱"
+            placeholder="請選擇客戶名稱"
             variant="amber" dense
             :class="clientNameError ? '[&_input]:border-red-400 [&_input]:focus:border-red-500' : ''"
           />
@@ -195,10 +204,10 @@ async function save() {
         </div>
         <div class="space-y-1.5 w-full md:w-72">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地名稱</label>
-          <AutocompleteInput v-model="form.site_name" :options="adminStore.allSiteNames" placeholder="選擇或輸入工程案名" variant="amber" dense />
+          <AutocompleteInput v-model="form.site_name" :options="adminStore.allSiteNames" placeholder="請選擇工地名稱" variant="amber" dense />
           <p class="h-4"></p>
         </div>
-        <div class="space-y-1.5">
+        <div class="space-y-1.5 w-full md:w-72">
           <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
             <span class="text-red-500 text-sm leading-none">*</span>請款年月
           </label>
@@ -238,42 +247,61 @@ async function save() {
             <tr v-for="(row, i) in form.rows" :key="i" class="hover:bg-amber-50/20 dark:hover:bg-amber-950/10 transition-colors">
               <td class="px-4 py-3 text-center text-slate-300 dark:text-slate-600 font-semibold text-xs">{{ i + 1 }}</td>
               <td class="px-4 py-3">
-                <DatePicker v-model="row.date" variant="amber" placeholder="選擇日期" />
+                <DatePicker v-model="row.date" variant="amber" placeholder="請選擇日期" />
               </td>
               <td class="px-4 py-3">
-                <AppInput v-model="row.route_from" variant="amber" dense placeholder="請輸入出發地" />
+                <AppInput v-model="row.route_from" variant="amber" dense placeholder="請輸入起點" />
               </td>
               <td class="px-1 py-3 text-center">
-                <button @click="swapRoute(i)" title="對調起迄點" 
-                  class="w-9 h-9 flex items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800/60 hover:bg-amber-500 hover:text-white transition-all duration-300 ease-out active:scale-[0.85] shadow-sm mx-auto"
+                <AppButton
+                  variant="soft-amber"
+                  size="sm"
+                  class="w-9 h-9 !p-0 mx-auto"
+                  @click="swapRoute(i)"
+                  title="對調起迄點"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9H3l5-5"/><path d="M3 15h18l-5 5"/></svg>
-                </button>
+                  <template #icon>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9H3l5-5"/><path d="M3 15h18l-5 5"/></svg>
+                  </template>
+                </AppButton>
               </td>
               <td class="px-4 py-3">
-                <AppInput v-model="row.route_to" variant="amber" dense placeholder="請選擇目的地" />
+                <AppInput v-model="row.route_to" variant="amber" dense placeholder="請輸入迄點" />
               </td>
               <td class="px-4 py-3">
-                <AppInput v-model="row.cargo" variant="amber" dense placeholder="請選擇設備品項" />
+                <AppInput v-model="row.cargo" variant="amber" dense placeholder="請輸入設備品項" />
               </td>
               <td class="px-4 py-3">
                 <NumberInput v-model="row.amount" variant="amber" align="right" :step="100" class="w-32 mx-auto" />
               </td>
               <td class="px-4 py-3">
-                <AppInput v-model="row.notes" variant="amber" dense placeholder="備註..." />
+                <AppInput v-model="row.notes" variant="amber" dense placeholder="請輸入備註" />
               </td>
               <td class="px-4 py-3 text-center">
                 <div class="flex flex-wrap items-center justify-center gap-2">
-                  <button @click="duplicateRow(i)" title="複製此行" 
-                    class="w-9 h-9 flex items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800/60 hover:bg-amber-500 hover:text-white transition-all duration-300 ease-out active:scale-[0.85] shadow-sm"
+                  <AppButton
+                    variant="soft-amber"
+                    size="sm"
+                    class="w-9 h-9 !p-0"
+                    @click="duplicateRow(i)"
+                    title="複製此行"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                  </button>
-                  <button v-if="form.rows.length > 1" @click="removeRow(i)" title="刪除本行" 
-                    class="w-9 h-9 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/60 hover:bg-red-600 hover:text-white transition-all duration-300 ease-out active:scale-[0.85] shadow-sm"
+                    <template #icon>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    </template>
+                  </AppButton>
+                  <AppButton
+                    v-if="form.rows.length > 1"
+                    variant="soft-red"
+                    size="sm"
+                    class="w-9 h-9 !p-0"
+                    @click="removeRow(i)"
+                    title="刪除本行"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                  </button>
+                    <template #icon>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </template>
+                  </AppButton>
                 </div>
               </td>
             </tr>
@@ -283,12 +311,16 @@ async function save() {
 
       <!-- 手動新增行按鈕 -->
       <div class="px-6 py-4 border-t border-slate-100/80 dark:border-slate-700/60 transition-colors bg-slate-50/20 dark:bg-slate-800/20">
-        <button @click="addRow" 
-          class="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800/60 hover:bg-amber-500 hover:text-white font-semibold text-base transition-all duration-300 ease-out active:scale-[0.98]"
+        <AppButton
+          variant="soft-amber"
+          block
+          @click="addRow"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <template #icon>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          </template>
           增加一筆空白行
-        </button>
+        </AppButton>
       </div>
 
       <!-- 結算 -->
@@ -316,7 +348,7 @@ async function save() {
               <span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
               <span class="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">含稅總計</span>
             </div>
-            <span class="text-3xl font-bold text-slate-900 dark:text-slate-100 font-mono-num w-32 text-right">{{ fmt(total) }} <small class="text-sm font-semibold opacity-60">元</small></span>
+            <span class="text-3xl font-bold text-amber-600 dark:text-amber-400 font-mono-num w-32 text-right">{{ fmt(total) }} <small class="text-sm font-semibold opacity-60">元</small></span>
           </div>
         </div>
       </div>

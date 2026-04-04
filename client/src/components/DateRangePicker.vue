@@ -132,15 +132,23 @@ function clear() {
 <template>
   <div class="drp-wrap" :class="{ 'drp-wrap--block': block }">
     <div ref="triggerEl" class="drp-trigger" :class="[{ 'drp-trigger--block': block, 'drp-open': show }, `drp-trigger--${variant}`]" @click="open">
-      <span class="seg" :class="{ 'seg-active': show && step === 1 }">{{ display(startDate) }}</span>
-      <span class="arrow">→</span>
-      <span class="seg" :class="{ 'seg-active': show && step === 2 }">{{ display(endDate) }}</span>
+      <template v-if="!startDate && !endDate">
+        <span class="seg seg-all">全部</span>
+      </template>
+      <template v-else>
+        <span class="seg" :class="{ 'seg-active': show && step === 1 }">{{ display(startDate) }}</span>
+        <span class="arrow">→</span>
+        <span class="seg" :class="{ 'seg-active': show && step === 2 }">{{ display(endDate) }}</span>
+      </template>
     </div>
 
     <Teleport to="body">
       <div v-if="show" class="drp-backdrop" @click="close"></div>
       <div v-if="show" class="drp-panel" :style="panelStyle" @click.stop>
-        <div class="drp-hint">{{ step === 1 ? '▶ 請點選起始日' : '▶ 請點選結束日' }}</div>
+        <div class="drp-hint">
+          <template v-if="!startDate && !endDate">▶ 目前顯示全部資料</template>
+          <template v-else>{{ step === 1 ? '▶ 請點選起始日' : '▶ 請點選結束日' }}</template>
+        </div>
         <div class="drp-nav">
           <button class="nav-btn" @click="prevMonth">◀</button>
           <span class="month-label">{{ viewYear }}年 {{ MONTH_NAMES[viewMonth] }}</span>
@@ -158,6 +166,7 @@ function clear() {
           >{{ item.day }}</div>
         </div>
         <div class="drp-footer">
+          <button class="btn-all" @click="clear(); close()">全部</button>
           <button class="btn-clear" @click="clear">清除</button>
           <button class="btn-close" @click="close">關閉</button>
         </div>
@@ -255,13 +264,16 @@ function clear() {
   display: flex; justify-content: space-between;
   margin-top: 12px; padding-top: 10px; border-top: 1px solid #f3f4f6;
 }
-.btn-clear, .btn-close {
+.btn-all, .btn-clear, .btn-close {
   font-size: 13px; padding: 5px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;
 }
+.btn-all { background: #f0fdf4; border: 1px solid #86efac; color: #16a34a; }
+.btn-all:hover { background: #dcfce7; }
 .btn-clear { background: none; border: 1px solid #e5e7eb; color: #6b7280; }
 .btn-clear:hover { background: #f9fafb; }
 .btn-close { background: #2563eb; border: none; color: #fff; }
 .btn-close:hover { background: #1d4ed8; }
+.seg-all { color: #16a34a; font-weight: bold; min-width: 120px; text-align: center; }
 
 /* ── 深色主題 ── */
 :global(.dark .drp-trigger) { background: #1e293b; border-color: #334155; }
@@ -300,6 +312,10 @@ function clear() {
 :global(.dark .day.day-in-range) { background: #1e3a5f; color: #93c5fd; }
 
 :global(.dark .drp-footer) { border-top-color: #334155; }
+:global(.dark .btn-all) { background: #052e16; border-color: #166534; color: #4ade80; }
+:global(.dark .btn-all:hover) { background: #14532d; }
 :global(.dark .btn-clear) { border-color: #334155; color: #94a3b8; }
 :global(.dark .btn-clear:hover) { background: #334155; }
+:global(.dark .btn-close:hover) { background: #1d4ed8; }
+:global(.dark .seg-all) { color: #4ade80; }
 </style>

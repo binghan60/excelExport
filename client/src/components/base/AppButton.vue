@@ -2,28 +2,41 @@
 defineProps({
   variant: {
     type: String,
-    default: 'primary' // primary, secondary, amber, emerald, red, ghost
+    default: 'primary' // primary, secondary, amber, emerald, red, ghost, violet, soft-*
   },
   size: {
     type: String,
-    default: 'md' // sm, md, lg
+    default: 'md' // sm, dense, md, lg, xl
   },
   block: Boolean,
   disabled: Boolean,
-  loading: Boolean
+  loading: Boolean,
+  rounded: {
+    type: String,
+    default: 'xl' // lg, xl, 2xl, full
+  }
 })
 </script>
 
 <template>
   <button
     :disabled="disabled || loading"
-    class="items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-300 ease-out active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none"
+    class="items-center justify-center gap-2 font-semibold transition-all duration-300 ease-out active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none"
     :class="[
       block ? 'w-full flex' : 'inline-flex',
+      
+      // Rounded mapping
+      rounded === 'lg' ? 'rounded-lg' : '',
+      rounded === 'xl' ? 'rounded-xl' : '',
+      rounded === '2xl' ? 'rounded-2xl' : '',
+      rounded === 'full' ? 'rounded-full' : '',
+
+      // Size mapping
       size === 'sm'    ? 'h-8  px-3 text-xs' : '',
       size === 'dense' ? 'h-9  px-4 text-sm' : '',
       size === 'md'    ? 'h-10 px-5 text-sm' : '',
-      size === 'lg'    ? 'h-11 px-7 text-sm' : '',
+      size === 'lg'    ? 'h-11 px-6 text-sm' : '',
+      size === 'xl'    ? 'h-12 px-8 text-base' : '',
 
       variant === 'primary'
         ? 'bg-blue-600 text-white hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-400 shadow-[0_1px_4px_0_rgba(37,99,235,0.25)] hover:shadow-[0_2px_10px_0_rgba(37,99,235,0.35)]' : '',
@@ -56,6 +69,6 @@ defineProps({
   >
     <slot name="icon"></slot>
     <slot v-if="!loading"></slot>
-    <span v-else class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+    <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
   </button>
 </template>

@@ -6,6 +6,7 @@ import { useAdminStore } from '../stores/admin.js'
 import AppButton from '../components/base/AppButton.vue'
 import AppCard from '../components/base/AppCard.vue'
 import MonthPicker from '../components/MonthPicker.vue'
+import ConfirmModal from '../components/base/ConfirmModal.vue'
 
 const router = useRouter()
 const store = useRentalsStore()
@@ -14,6 +15,7 @@ const adminStore = useAdminStore()
 const currentMonth = new Date().toISOString().slice(0, 7)
 const filters = ref({ client: '', site: '', equipment: '', month: currentMonth })
 const expandedId = ref(null)
+const deleteTarget = ref(null)
 
 onMounted(async () => {
   await Promise.all([store.fetchAll(), adminStore.fetchAll()])
@@ -36,7 +38,11 @@ const filteredRentals = computed(() => store.rentals.filter(inv => {
 }))
 
 function toggleExpand(id) { expandedId.value = expandedId.value === id ? null : id }
-async function remove(id) { if (confirm('確定要刪除這筆請款單？')) await store.deleteRental(id) }
+function remove(id) { deleteTarget.value = id }
+async function confirmDelete() {
+  if (deleteTarget.value) await store.deleteRental(deleteTarget.value)
+  deleteTarget.value = null
+}
 function resetFilters() { filters.value = { client: '', site: '', equipment: '', month: currentMonth } }
 
 function fmt(n) { return n ? n.toLocaleString() : '0' }
@@ -48,7 +54,7 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="space-y-1">
         <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">租賃請款單</h1>
-        <p class="text-sm font-medium text-slate-400 dark:text-slate-500">帳務歷史與明細審閱</p>
+        <p class="text-base font-medium text-slate-400 dark:text-slate-500">帳務歷史與明細審閱</p>
       </div>
       <AppButton size="lg" @click="router.push('/rentals/new')">
         <template #icon>
@@ -84,7 +90,7 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">月份</label>
-          <MonthPicker v-model="filters.month" dense />
+          <MonthPicker v-model="filters.month" dense show-all />
         </div>
         <AppButton variant="soft-blue" size="dense" @click="resetFilters">重設篩選</AppButton>
       </div>
@@ -100,7 +106,10 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
     <div v-else class="space-y-3">
       <div v-for="inv in filteredRentals" :key="inv.id"
         class="group bg-white dark:bg-slate-900 border rounded-2xl transition-all duration-300 ease-out shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)]"
-        :class="expandedId === inv.id ? 'overflow-clip border-blue-400/70 dark:border-blue-600/70 ring-4 ring-blue-50 dark:ring-blue-950/50 shadow-[0_4px_16px_0_rgba(37,99,235,0.08)]' : 'overflow-hidden border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300/80 dark:hover:border-slate-600/80 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'"
+        :class="[
+          inv._pending ? 'opacity-60 pointer-events-none' : '',
+          expandedId === inv.id ? 'overflow-clip border-blue-400/70 dark:border-blue-600/70 ring-4 ring-blue-50 dark:ring-blue-950/50 shadow-[0_4px_16px_0_rgba(37,99,235,0.08)]' : 'overflow-hidden border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300/80 dark:hover:border-slate-600/80 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'
+        ]"
       >
         <!-- 簡項視圖 -->
         <div
@@ -120,6 +129,10 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
             <div class="space-y-1">
               <div class="flex items-center gap-3 flex-wrap">
                 <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ inv.client_name }}</h3>
+                <span v-if="inv._pending" class="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-[10px] font-semibold rounded animate-pulse">
+                  <svg class="w-2.5 h-2.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                  上傳中
+                </span>
                 <div class="flex gap-1.5 flex-wrap">
                   <span v-for="(name, idx) in inv.equipment_names" :key="idx" 
                     class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 text-[10px] font-bold rounded border border-blue-100 dark:border-blue-900 uppercase tracking-tight"
@@ -142,18 +155,28 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
               <p class="text-base font-semibold text-slate-600 dark:text-slate-300 font-mono-num">{{ inv.year_month }}</p>
             </div>
             <div class="flex items-center gap-2">
-              <button @click.stop="router.push(`/rentals/${inv.id}`)" 
-                class="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/60 hover:bg-blue-600 hover:text-white transition-all duration-300 ease-out active:scale-[0.95] hover:border-transparent hover:shadow-[0_2px_8px_0_rgba(37,99,235,0.3)]" 
+              <AppButton
+                variant="soft-blue"
+                size="sm"
+                class="w-9 h-9 !p-0"
+                @click.stop="router.push(`/rentals/${inv.id}`)"
                 title="編輯"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </button>
-              <button @click.stop="remove(inv.id)" 
-                class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/60 hover:bg-red-600 hover:text-white transition-all duration-300 ease-out active:scale-[0.95] hover:border-transparent hover:shadow-[0_2px_8px_0_rgba(239,68,68,0.3)]" 
+                <template #icon>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </template>
+              </AppButton>
+              <AppButton
+                variant="soft-red"
+                size="sm"
+                class="w-9 h-9 !p-0"
+                @click.stop="remove(inv.id)"
                 title="刪除"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-              </button>
+                <template #icon>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </template>
+              </AppButton>
             </div>
           </div>
         </div>
@@ -215,4 +238,11 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
       </div>
     </div>
   </div>
+
+  <ConfirmModal
+    :show="!!deleteTarget"
+    message="此操作無法復原，確定要刪除這筆租賃請款單？"
+    @confirm="confirmDelete"
+    @cancel="deleteTarget = null"
+  />
 </template>

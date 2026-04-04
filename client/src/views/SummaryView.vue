@@ -38,13 +38,13 @@ const clientGroups = computed(() => {
   const clientFilter = filterClient.value
   const siteFilter = filterSite.value
   for (const inv of allRentals.value) {
-    if (inv.year_month !== ym) continue
+    if (ym && inv.year_month !== ym) continue
     if (siteFilter && inv.site_name !== siteFilter) continue
     if (!map[inv.client_name]) map[inv.client_name] = { rentals: [], freights: [] }
     map[inv.client_name].rentals.push(inv)
   }
   for (const inv of allFreights.value) {
-    if (inv.year_month !== ym) continue
+    if (ym && inv.year_month !== ym) continue
     // 只有當工地篩選空白，或該客戶已有租賃資料時才帶入運費
     if (siteFilter && !map[inv.client_name]) continue
     if (!map[inv.client_name]) map[inv.client_name] = { rentals: [], freights: [] }
@@ -109,7 +109,7 @@ function fmt(num) {
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="space-y-1">
         <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">月結報表總覽</h1>
-        <p class="text-sm font-medium text-slate-400 dark:text-slate-500">帳務匯總與報表產製</p>
+        <p class="text-base font-medium text-slate-400 dark:text-slate-500">帳務匯總與報表產製</p>
       </div>
     </div>
 
@@ -118,7 +118,7 @@ function fmt(num) {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">月份</label>
-          <MonthPicker v-model="yearMonth" variant="violet" dense />
+          <MonthPicker v-model="yearMonth" variant="violet" dense show-all />
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">客戶</label>

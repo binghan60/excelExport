@@ -6,6 +6,7 @@ import { useAdminStore } from '../stores/admin.js'
 import AppButton from '../components/base/AppButton.vue'
 import AppCard from '../components/base/AppCard.vue'
 import MonthPicker from '../components/MonthPicker.vue'
+import ConfirmModal from '../components/base/ConfirmModal.vue'
 
 const router = useRouter()
 const store = useRentalsStore()
@@ -14,6 +15,7 @@ const adminStore = useAdminStore()
 const currentMonth = new Date().toISOString().slice(0, 7)
 const filters = ref({ client: '', site: '', month: currentMonth })
 const expandedId = ref(null)
+const deleteTarget = ref(null)
 
 onMounted(async () => {
   await Promise.all([store.fetchAll(), adminStore.fetchAll()])
@@ -26,7 +28,11 @@ const filteredFreights = computed(() => store.freights.filter(f =>
 ))
 
 function toggleExpand(id) { expandedId.value = expandedId.value === id ? null : id }
-async function remove(id) { if (confirm('確定要刪除這筆運費請款單？')) await store.deleteFreight(id) }
+function remove(id) { deleteTarget.value = id }
+async function confirmDelete() {
+  if (deleteTarget.value) await store.deleteFreight(deleteTarget.value)
+  deleteTarget.value = null
+}
 function resetFilters() { filters.value = { client: '', site: '', month: currentMonth } }
 function fmt(n) { return n != null ? Number(n).toLocaleString() : '—' }
 function rowSubtotal(f) {
@@ -40,7 +46,7 @@ function rowSubtotal(f) {
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="space-y-1">
         <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">運費請款單</h1>
-        <p class="text-sm font-medium text-slate-400 dark:text-slate-500">運輸費用記錄與管理</p>
+        <p class="text-base font-medium text-slate-400 dark:text-slate-500">運輸費用記錄與管理</p>
       </div>
       <AppButton variant="amber" size="lg" @click="router.push('/freights/new')">
         <template #icon>
@@ -69,7 +75,7 @@ function rowSubtotal(f) {
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">月份</label>
-          <MonthPicker v-model="filters.month" variant="amber" dense />
+          <MonthPicker v-model="filters.month" variant="amber" dense show-all />
         </div>
         <AppButton variant="soft-amber" size="dense" @click="resetFilters">重設篩選</AppButton>
       </div>
@@ -88,9 +94,12 @@ function rowSubtotal(f) {
         v-for="f in filteredFreights"
         :key="f.id"
         class="group bg-white dark:bg-slate-900 border rounded-2xl transition-all duration-300 ease-out shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)]"
-        :class="expandedId === f.id
-          ? 'overflow-clip border-amber-400/70 dark:border-amber-600/70 ring-4 ring-amber-50 dark:ring-amber-950/40 shadow-[0_4px_16px_0_rgba(217,119,6,0.08)]'
-          : 'overflow-hidden border-slate-200/60 dark:border-slate-700/60 hover:border-amber-300/70 dark:hover:border-amber-700/70 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'"
+        :class="[
+          f._pending ? 'opacity-60 pointer-events-none' : '',
+          expandedId === f.id
+            ? 'overflow-clip border-amber-400/70 dark:border-amber-600/70 ring-4 ring-amber-50 dark:ring-amber-950/40 shadow-[0_4px_16px_0_rgba(217,119,6,0.08)]'
+            : 'overflow-hidden border-slate-200/60 dark:border-slate-700/60 hover:border-amber-300/70 dark:hover:border-amber-700/70 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'
+        ]"
       >
         <!-- ── 摘要列（可點擊展開） ── -->
         <div
@@ -118,7 +127,11 @@ function rowSubtotal(f) {
             <div class="space-y-1">
               <div class="flex items-center gap-3 flex-wrap">
                 <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ f.client_name }}</h3>
-                <span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded border border-amber-100 dark:border-amber-900">運費帳單</span>
+                <span v-if="f._pending" class="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-[10px] font-semibold rounded animate-pulse">
+                  <svg class="w-2.5 h-2.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                  上傳中
+                </span>
+                <span v-else class="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded border border-amber-100 dark:border-amber-900">運費帳單</span>
               </div>
 
             </div>
@@ -137,20 +150,28 @@ function rowSubtotal(f) {
             </div>
             <!-- 操作按鈕 -->
             <div class="flex items-center gap-2">
-              <button
+              <AppButton
+                variant="soft-amber"
+                size="sm"
+                class="w-9 h-9 !p-0"
                 @click.stop="router.push(`/freights/${f.id}`)"
-                class="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800/60 hover:bg-amber-500 hover:text-white hover:border-transparent transition-all duration-300 ease-out active:scale-[0.95] hover:shadow-[0_2px_8px_0_rgba(217,119,6,0.3)]"
                 title="編輯"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </button>
-              <button
+                <template #icon>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </template>
+              </AppButton>
+              <AppButton
+                variant="soft-red"
+                size="sm"
+                class="w-9 h-9 !p-0"
                 @click.stop="remove(f.id)"
-                class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/60 hover:bg-red-600 hover:text-white hover:border-transparent transition-all duration-300 ease-out active:scale-[0.95] hover:shadow-[0_2px_8px_0_rgba(239,68,68,0.3)]"
                 title="刪除"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-              </button>
+                <template #icon>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </template>
+              </AppButton>
             </div>
           </div>
         </div>
@@ -168,7 +189,7 @@ function rowSubtotal(f) {
                   <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
                     <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-10">#</th>
                     <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-28">運輸日期</th>
-                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap">運輸路線 (起點 ➔ 迄點)</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center whitespace-nowrap w-28">運輸路線 (起點 ➔ 迄點)</th>
                     <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap w-56">載運品項</th>
                     <th class="px-4 py-3 text-xs font-semibold text-amber-500 dark:text-amber-400 uppercase tracking-wide text-right pr-6 whitespace-nowrap w-32">金額（未稅）</th>
                     <th class="px-4 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap w-64">備註</th>
@@ -226,4 +247,11 @@ function rowSubtotal(f) {
       </div>
     </div>
   </div>
+
+  <ConfirmModal
+    :show="!!deleteTarget"
+    message="此操作無法復原，確定要刪除這筆運費請款單？"
+    @confirm="confirmDelete"
+    @cancel="deleteTarget = null"
+  />
 </template>

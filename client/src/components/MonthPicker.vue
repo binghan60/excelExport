@@ -6,6 +6,7 @@ const props = defineProps({
   variant:    { type: String, default: 'blue' },    // blue | amber
   transparent: { type: Boolean, default: false },   // SummaryView 用
   dense:       { type: Boolean, default: false },   // 36px 緊湊樣式
+  showAll:     { type: Boolean, default: false },   // 顯示「全部」按鈕（篩選用）
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -17,10 +18,15 @@ const viewYear  = ref(new Date().getFullYear())
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 
 const display = computed(() => {
-  if (!props.modelValue) return '選擇月份'
+  if (!props.modelValue) return props.showAll ? '全部' : '選擇月份'
   const [y, m] = props.modelValue.split('-')
   return `${y}年 ${parseInt(m)}月`
 })
+
+function selectAll() {
+  emit('update:modelValue', '')
+  show.value = false
+}
 
 function open() {
   if (props.modelValue) viewYear.value = parseInt(props.modelValue.split('-')[0])
@@ -81,6 +87,9 @@ function isSelected(month) {
             :class="isSelected(i + 1) ? 'mp-month--selected' : ''"
             @click="select(i + 1)"
           >{{ name }}</button>
+        </div>
+        <div v-if="showAll" class="mp-footer">
+          <button class="mp-btn-all" :class="{ 'mp-btn-all--active': !modelValue }" @click="selectAll">全部</button>
         </div>
       </div>
     </Teleport>
@@ -153,6 +162,16 @@ function isSelected(month) {
 .mp-month--selected { background: #2563eb; color: #fff; font-weight: 700; }
 .mp-month--selected:hover { background: #1d4ed8; color: #fff; }
 
+.mp-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f3f4f6; }
+.mp-btn-all {
+  width: 100%; padding: 7px 0; font-size: 13px; font-weight: 600;
+  border: 1px solid #86efac; border-radius: 8px; cursor: pointer;
+  background: #f0fdf4; color: #16a34a; transition: background 0.1s;
+}
+.mp-btn-all:hover { background: #dcfce7; }
+.mp-btn-all--active { background: #16a34a; color: #fff; border-color: #16a34a; }
+.mp-btn-all--active:hover { background: #15803d; }
+
 /* ── 深色主題 ── */
 :global(.dark .mp-trigger--full) { background: #1e293b; border-color: #334155; color: #94a3b8; }
 :global(.dark .mp-trigger--transparent) { color: #cbd5e1; }
@@ -170,4 +189,8 @@ function isSelected(month) {
 :global(.dark .mp-month) { color: #cbd5e1; }
 :global(.dark .mp-month:hover) { background: #1e3a5f; color: #60a5fa; }
 :global(.dark .mp-month--selected) { background: #2563eb; color: #fff; }
+:global(.dark .mp-footer) { border-top-color: #334155; }
+:global(.dark .mp-btn-all) { background: #052e16; border-color: #166534; color: #4ade80; }
+:global(.dark .mp-btn-all:hover) { background: #14532d; }
+:global(.dark .mp-btn-all--active) { background: #16a34a; color: #fff; border-color: #16a34a; }
 </style>

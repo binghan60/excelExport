@@ -17,16 +17,32 @@ export const useRentalsStore = defineStore('rentals', () => {
   }
 
   async function createRental(body) {
-    const created = await api.createRental(body)
-    rentals.value.unshift(created)
-    return created
+    const tempId = `_pending_${Date.now()}`
+    rentals.value.unshift({ ...body, id: tempId, equipment_names: [], _pending: true })
+    try {
+      const created = await api.createRental(body)
+      const idx = rentals.value.findIndex(r => r.id === tempId)
+      if (idx !== -1) rentals.value.splice(idx, 1, created)
+      return created
+    } catch (e) {
+      rentals.value = rentals.value.filter(r => r.id !== tempId)
+      throw e
+    }
   }
 
   async function updateRental(id, body) {
-    const updated = await api.updateRental(id, body)
     const idx = rentals.value.findIndex(r => r.id === id)
-    if (idx !== -1) rentals.value[idx] = updated
-    return updated
+    const original = idx !== -1 ? { ...rentals.value[idx] } : null
+    if (idx !== -1) rentals.value[idx] = { ...rentals.value[idx], ...body, _pending: true }
+    try {
+      const updated = await api.updateRental(id, body)
+      const i = rentals.value.findIndex(r => r.id === id)
+      if (i !== -1) rentals.value[i] = updated
+      return updated
+    } catch (e) {
+      if (original) { const i = rentals.value.findIndex(r => r.id === id); if (i !== -1) rentals.value[i] = original }
+      throw e
+    }
   }
 
   async function deleteRental(id) {
@@ -35,16 +51,32 @@ export const useRentalsStore = defineStore('rentals', () => {
   }
 
   async function createFreight(body) {
-    const created = await api.createFreight(body)
-    freights.value.unshift(created)
-    return created
+    const tempId = `_pending_${Date.now()}`
+    freights.value.unshift({ ...body, id: tempId, _pending: true })
+    try {
+      const created = await api.createFreight(body)
+      const idx = freights.value.findIndex(r => r.id === tempId)
+      if (idx !== -1) freights.value.splice(idx, 1, created)
+      return created
+    } catch (e) {
+      freights.value = freights.value.filter(r => r.id !== tempId)
+      throw e
+    }
   }
 
   async function updateFreight(id, body) {
-    const updated = await api.updateFreight(id, body)
     const idx = freights.value.findIndex(r => r.id === id)
-    if (idx !== -1) freights.value[idx] = updated
-    return updated
+    const original = idx !== -1 ? { ...freights.value[idx] } : null
+    if (idx !== -1) freights.value[idx] = { ...freights.value[idx], ...body, _pending: true }
+    try {
+      const updated = await api.updateFreight(id, body)
+      const i = freights.value.findIndex(r => r.id === id)
+      if (i !== -1) freights.value[i] = updated
+      return updated
+    } catch (e) {
+      if (original) { const i = freights.value.findIndex(r => r.id === id); if (i !== -1) freights.value[i] = original }
+      throw e
+    }
   }
 
   async function deleteFreight(id) {

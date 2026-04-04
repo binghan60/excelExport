@@ -24,9 +24,38 @@ const toggleEquipmentType = (type) => {
   }
 }
 
-const COLORS_LIGHT = { '土桶': '#2563eb', '鋼軌': '#d97706', '鐵板': '#e11d48', '鐵網': '#7e22ce' }
-const COLORS_DARK  = { '土桶': '#1e40af', '鋼軌': '#92400e', '鐵板': '#9f1239', '鐵網': '#4c1d95' }
-const COLORS = computed(() => isDark.value ? COLORS_DARK : COLORS_LIGHT)
+// 基礎顏色庫（8 色，色相均勻分布，避免相近）
+const BASE_COLORS = [
+  { light: '#dc2626', dark: '#ef4444' }, // red      0°
+  { light: '#ea580c', dark: '#fb923c' }, // orange   30°
+  { light: '#ca8a04', dark: '#facc15' }, // yellow   60°
+  { light: '#16a34a', dark: '#4ade80' }, // green   120°
+  { light: '#0d9488', dark: '#2dd4bf' }, // teal    180°
+  { light: '#2563eb', dark: '#60a5fa' }, // blue    210°
+  { light: '#7c3aed', dark: '#a78bfa' }, // violet  270°
+  { light: '#db2777', dark: '#f472b6' }, // pink    330°
+]
+
+// 固定對應表
+const FIXED_COLORS = {
+  '土桶': 0, '鋼軌': 1, '鐵板': 2, '鐵網': 3
+}
+
+// 動態產出目前有的設備種類及其顏色（object map 供 legend 和 ganttTasks 使用）
+// 固定設備用 FIXED_COLORS，其餘依序分配剩餘顏色，保證不重複
+const COLORS = computed(() => {
+  const map = {}
+  const usedIndices = new Set(Object.values(FIXED_COLORS))
+  const freeIndices = BASE_COLORS.map((_, i) => i).filter(i => !usedIndices.has(i))
+  let freeSlot = 0
+  equipmentOptions.value.forEach(name => {
+    const fixedIdx = FIXED_COLORS[name]
+    const idx = fixedIdx !== undefined ? fixedIdx : freeIndices[freeSlot++ % freeIndices.length]
+    const colorSet = BASE_COLORS[idx]
+    map[name] = isDark.value ? colorSet.dark : colorSet.light
+  })
+  return map
+})
 
 const today = new Date()
 const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -53,16 +82,37 @@ const equipmentOptions = computed(() => {
   return [...equipments].sort()
 })
 
+// 當日期篩選為空（全部）時，自動從資料推算最小/最大日期範圍
+const effectiveRange = computed(() => {
+  if (filters.value.startDate && filters.value.endDate)
+    return { start: filters.value.startDate, end: filters.value.endDate }
+
+  let minDate = '', maxDate = ''
+  rentalsStore.rentals.forEach(inv => {
+    const matchClient = !filters.value.client || inv.client_name === filters.value.client
+    const matchSite = !filters.value.site || inv.site_name === filters.value.site
+    if (!matchClient || !matchSite || !inv.rows) return
+    inv.rows.forEach(r => {
+      if (!r.start_date) return
+      if (!minDate || r.start_date < minDate) minDate = r.start_date
+      const end = r.end_date || r.return_date || r.start_date
+      if (!maxDate || end > maxDate) maxDate = end
+    })
+  })
+  return { start: minDate, end: maxDate }
+})
+
 // === 純 CSS 甘特圖資料計算 ===
 const chartDates = computed(() => {
   const dates = []
-  if (!filters.value.startDate || !filters.value.endDate) return dates
-  const start = new Date(filters.value.startDate)
-  const end = new Date(filters.value.endDate)
-  
-  let current = new Date(start.getFullYear(), start.getMonth(), start.getDate())
-  const endObj = new Date(end.getFullYear(), end.getMonth(), end.getDate())
-  
+  const { start, end } = effectiveRange.value
+  if (!start || !end) return dates
+  const startD = new Date(start)
+  const endD   = new Date(end)
+
+  let current = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate())
+  const endObj = new Date(endD.getFullYear(), endD.getMonth(), endD.getDate())
+
   while (current <= endObj) {
     dates.push(new Date(current))
     current.setDate(current.getDate() + 1)
@@ -75,10 +125,11 @@ const totalDays = computed(() => chartDates.value.length || 1)
 
 const ganttTasks = computed(() => {
   const data = []
-  if (!filters.value.startDate || !filters.value.endDate) return data
-  
-  const filterStart = new Date(`${filters.value.startDate} 00:00:00`)
-  const filterEnd = new Date(`${filters.value.endDate} 23:59:59`)
+  const { start, end } = effectiveRange.value
+  if (!start || !end) return data
+
+  const filterStart = new Date(`${start} 00:00:00`)
+  const filterEnd   = new Date(`${end} 23:59:59`)
 
   rentalsStore.rentals.forEach(inv => {
     const matchClient = !filters.value.client || inv.client_name === filters.value.client
@@ -280,6 +331,7 @@ onMounted(async () => {
             <div class="min-w-max md:min-w-0">
               
               <div class="flex sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 font-medium text-slate-700 dark:text-slate-200 shadow-sm">
+
                 <div class="w-[160px] shrink-0 px-4 py-2 border-r border-slate-200 dark:border-slate-700 sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 flex items-center">出租內容</div>
                 <div class="w-[90px] shrink-0 px-2 py-2 border-r border-slate-200 dark:border-slate-700 sticky left-[160px] z-30 bg-slate-50 dark:bg-slate-800 flex items-center justify-center">開始日期</div>
                 <div class="w-[50px] shrink-0 px-2 py-2 border-r border-slate-200 dark:border-slate-700 sticky left-[250px] z-30 bg-slate-50 dark:bg-slate-800 flex items-center justify-center">天數</div>

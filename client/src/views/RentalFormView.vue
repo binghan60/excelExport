@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useField, useForm } from 'vee-validate'
 import * as yup from 'yup'
+import { useSwal } from '../composables/useSwal.js'
 import { api } from '../api/index.js'
 import { useRentalsStore } from '../stores/rentals.js'
 import { useAdminStore } from '../stores/admin.js'
@@ -13,6 +14,7 @@ import AppInput from '../components/base/AppInput.vue'
 import AppButton from '../components/base/AppButton.vue'
 import AutocompleteInput from '../components/base/AutocompleteInput.vue'
 
+const { fire: swalFire } = useSwal()
 const router = useRouter()
 const route = useRoute()
 const store = useRentalsStore()
@@ -21,7 +23,6 @@ const adminStore = useAdminStore()
 const equipmentTypes = ref([])
 const saving = ref(false)
 const serverError = ref('')
-const successMsg = ref('')
 
 // ── VeeValidate：頂層欄位 ──────────────────────────────────
 const { validate } = useForm()
@@ -153,30 +154,40 @@ async function save() {
   if (!valid || !rowsValid) return
 
   saving.value = true
+  const payload = {
+    client_name: clientName.value,
+    year_month: yearMonth.value,
+    vendor: form.value.vendor,
+    site_name: form.value.site_name,
+    rows: form.value.rows
+      .filter(r => r.quantity || r.start_date || r.delivery_date)
+      .map(r => ({
+        ...r,
+        quantity: r.quantity !== '' ? Number(r.quantity) : null,
+        daily_rate: r.daily_rate !== '' ? Number(r.daily_rate) : null,
+        days: r.days !== '' ? Number(r.days) : null,
+      })),
+  }
+
+  // 先觸發 Store 異動（內含同步 unshift）再跳轉，達成 Optimistic UI
+  const promise = isEdit.value
+    ? store.updateRental(editId.value, payload)
+    : store.createRental(payload)
+
+  router.push('/rentals')
+
   try {
-    const payload = {
-      client_name: clientName.value,
-      year_month: yearMonth.value,
-      vendor: form.value.vendor,
-      site_name: form.value.site_name,
-      rows: form.value.rows
-        .filter(r => r.quantity || r.start_date || r.delivery_date)
-        .map(r => ({
-          ...r,
-          quantity: r.quantity !== '' ? Number(r.quantity) : null,
-          daily_rate: r.daily_rate !== '' ? Number(r.daily_rate) : null,
-          days: r.days !== '' ? Number(r.days) : null,
-        })),
-    }
-    if (isEdit.value) {
-      await store.updateRental(editId.value, payload)
-    } else {
-      await store.createRental(payload)
-    }
-    successMsg.value = '單據已儲存成功'
-    setTimeout(() => router.push('/rentals'), 1000)
+    await promise
+    swalFire({
+      icon: 'success',
+      title: isEdit.value ? '修改完成' : '建立成功',
+      text: '租賃請款單已儲存',
+      timer: 1500,
+      showConfirmButton: false,
+      timerProgressBar: true,
+    })
   } catch (e) {
-    serverError.value = e.message
+    swalFire({ icon: 'error', title: '儲存失敗', text: e.message || '請稍後再試' })
   } finally {
     saving.value = false
   }
@@ -189,15 +200,18 @@ async function save() {
     <!-- 頂部操作列 -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="flex items-center gap-4">
-        <button
+        <AppButton
+          variant="secondary"
           @click="router.push('/rentals')"
-          class="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300/60 dark:hover:border-blue-700/60 transition-all duration-300 ease-out active:scale-[0.95] shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]"
+          class="w-10 h-10 !p-0"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
+          <template #icon>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </template>
+        </AppButton>
         <div class="space-y-1">
           <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{{ isEdit ? '編輯請款單據' : '建立新租賃單' }}</h1>
-          <p class="text-sm font-medium text-slate-400 dark:text-slate-500">租賃請款明細資料輸入</p>
+          <p class="text-base font-medium text-slate-400 dark:text-slate-500">租賃請款明細資料輸入</p>
         </div>
       </div>
 
@@ -207,11 +221,6 @@ async function save() {
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       {{ serverError }}
     </div>
-    <div v-if="successMsg" class="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900 font-semibold flex items-center gap-3 text-sm">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      {{ successMsg }}
-    </div>
-
     <!-- 基本資料 -->
     <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)] transition-all duration-300">
       <div class="px-6 py-4 border-b border-slate-100/80 dark:border-slate-700/60">
@@ -226,7 +235,7 @@ async function save() {
             :model-value="clientName"
             @update:model-value="onClientNameChange"
             :options="adminStore.allCustomerNames"
-            placeholder="選擇或輸入廠商名稱"
+            placeholder="請選擇客戶名稱"
             variant="blue" dense
             :class="clientNameError ? '[&_input]:border-red-400 [&_input]:focus:border-red-500' : ''"
           />
@@ -239,15 +248,15 @@ async function save() {
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">廠商代號</label>
-          <AppInput v-model="form.vendor" variant="blue" dense placeholder="代號" />
+          <AppInput v-model="form.vendor" variant="blue" dense placeholder="請輸入廠商代號" />
           <p class="h-4"></p>
         </div>
         <div class="space-y-1.5">
           <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">工地名稱</label>
-          <AutocompleteInput v-model="form.site_name" :options="adminStore.allSiteNames" placeholder="選擇或輸入工程案名" variant="blue" dense />
+          <AutocompleteInput v-model="form.site_name" :options="adminStore.allSiteNames" placeholder="請選擇工地名稱" variant="blue" dense />
           <p class="h-4"></p>
         </div>
-        <div class="space-y-1.5">
+        <div class="space-y-1.5 w-full md:w-72">
           <label class="flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
             <span class="text-red-500 text-sm leading-none">*</span>結帳年月
           </label>
@@ -284,7 +293,7 @@ async function save() {
               <th class="px-2 py-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-center w-24 whitespace-nowrap">操作</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-50 dark:divide-slate-800">
+          <tbody class="divide-y divide-slate-50 dark:divide-slate-800 [&_td]:align-top">
             <tr v-for="(row, i) in form.rows" :key="i" class="hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition-colors">
               <td class="px-2 py-3 text-center">
                 <input type="checkbox" v-model="row.is_continued" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer">
@@ -292,13 +301,13 @@ async function save() {
               <td class="px-2 py-3 w-40">
                 <select v-model="row.equipment_type_id"
                   @change="rowErrors[i] = ''"
-                  class="w-full h-9 px-2 bg-white dark:bg-slate-900 border rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 transition-all cursor-pointer font-medium"
+                  class="w-full h-9 px-2 bg-white dark:bg-slate-900 border rounded-lg focus:border-blue-500 outline-none text-sm text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
                   :class="rowErrors[i] ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'"
                 >
-                  <option value="">選擇...</option>
+                  <option value="">請選擇</option>
                   <option v-for="et in equipmentTypes" :key="et.id" :value="et.id">{{ et.name }}</option>
                 </select>
-                <p class="mt-1 h-3.5 text-[10px] font-semibold text-red-500 leading-tight">{{ rowErrors[i] }}</p>
+                <p class="mt-1 h-4 text-[10px] font-semibold text-red-500 leading-tight">{{ rowErrors[i] }}</p>
               </td>
               <td class="px-2 py-3 w-44">
                 <DateRangePicker variant="blue"
@@ -331,22 +340,32 @@ async function save() {
                 </span>
               </td>
               <td class="px-2 py-3 min-w-24">
-                <AppInput v-model="row.notes" variant="blue" dense placeholder="備註..." />
+                <AppInput v-model="row.notes" variant="blue" dense placeholder="請輸入備註" />
               </td>
               <td class="px-2 py-3 text-center whitespace-nowrap">
                 <div class="flex items-center justify-center gap-1.5">
-                  <button @click.prevent="duplicateRow(i)" 
-                    class="w-9 h-9 flex items-center justify-center bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/60 hover:bg-blue-600 hover:text-white shadow-sm rounded-lg transition-all duration-300 ease-out active:scale-[0.85]" 
+                  <AppButton
+                    variant="soft-blue"
+                    size="sm"
+                    class="w-9 h-9 !p-0"
+                    @click.prevent="duplicateRow(i)"
                     title="複製此行"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                  </button>
-                  <button @click.prevent="removeRow(i)" 
-                    class="w-9 h-9 flex items-center justify-center bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/60 hover:bg-red-600 hover:text-white shadow-sm rounded-lg transition-all duration-300 ease-out active:scale-[0.85]" 
+                    <template #icon>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </template>
+                  </AppButton>
+                  <AppButton
+                    variant="soft-red"
+                    size="sm"
+                    class="w-9 h-9 !p-0"
+                    @click.prevent="removeRow(i)"
                     title="刪除此行"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-                  </button>
+                    <template #icon>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                    </template>
+                  </AppButton>
                 </div>
               </td>
             </tr>
@@ -355,16 +374,20 @@ async function save() {
       </div>
 
       <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-center bg-slate-50/20 dark:bg-slate-800/20">
-        <button @click="addRow" 
-          class="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/60 hover:bg-blue-600 hover:text-white font-semibold text-base transition-all duration-300 ease-out active:scale-[0.98]"
+        <AppButton
+          variant="soft-blue"
+          block
+          @click="addRow"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <template #icon>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </template>
           增加一筆空白行
-        </button>
+        </AppButton>
       </div>
 
       <!-- 結算區 -->
-      <div class="sticky bottom-0 z-10 px-8 py-5 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 flex items-end justify-between gap-6 border-t border-slate-200 dark:border-slate-700 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)]">
+      <div class="sticky bottom-0 z-10 px-8 py-5 backdrop-blur-md bg-white/95 dark:bg-slate-900/95 flex items-end justify-between gap-6 border-t border-slate-200 dark:border-slate-700 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)]">
         <!-- 送出按鈕 -->
         <AppButton variant="primary" size="lg" :loading="saving" @click="save">
           <template #icon>

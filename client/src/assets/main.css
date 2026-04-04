@@ -1,8 +1,11 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root {
+@theme {
   --font-mono-num: "JetBrains Mono", "Roboto Mono", ui-monospace, monospace;
+}
+
+:root {
   --shadow-card: 0 1px 3px 0 rgba(0,0,0,0.02), 0 1px 2px 1px rgba(0,0,0,0.03);
   --shadow-card-hover: 0 4px 12px 0 rgba(0,0,0,0.04), 0 1px_3px 0 rgba(0,0,0,0.03);
   --shadow-blue: 0 1px 4px 0 rgba(37,99,235,0.22), 0 0 0 0 transparent;

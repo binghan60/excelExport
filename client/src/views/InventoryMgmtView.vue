@@ -2,9 +2,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useInventoryStore } from '../stores/inventory.js'
 import { useAdminStore } from '../stores/admin.js'
+import { useSwal } from '../composables/useSwal.js'
 import { api } from '../api/index.js'
 import AppButton from '../components/base/AppButton.vue'
 import AppCard from '../components/base/AppCard.vue'
+import ConfirmModal from '../components/base/ConfirmModal.vue'
 
 // ── Tab 狀態 ──────────────────────────────────────────────
 const activeTab = ref('equipment')
@@ -18,9 +20,55 @@ const tabs = [
 // ── Stores ────────────────────────────────────────────────
 const store = useInventoryStore()
 const adminStore = useAdminStore()
+const swal = useSwal()
 const logs = ref([])
 const rowEdits = reactive({})
-const deleteEquipId = ref(null)
+
+// ── 刪除確認 ──────────────────────────────────────────────
+const confirmDelete = reactive({
+  show: false,
+  type: '', // 'equipment', 'customer', 'site'
+  id: null,
+  title: '',
+  message: ''
+})
+
+function openDeleteConfirm(type, item) {
+  confirmDelete.type = type
+  confirmDelete.id = item.id
+  confirmDelete.show = true
+  
+  if (type === 'equipment') {
+    confirmDelete.title = '確認刪除設備'
+    confirmDelete.message = `確定要刪除「${item.name}」嗎？這將會移除所有相關的庫存記錄。`
+  } else if (type === 'customer') {
+    confirmDelete.title = '確認刪除客戶'
+    confirmDelete.message = `確定要刪除客戶「${item.name}」嗎？`
+  } else if (type === 'site') {
+    confirmDelete.title = '確認刪除工地'
+    confirmDelete.message = `確定要刪除工地「${item.name}」嗎？`
+  }
+}
+
+async function handleConfirmDelete() {
+  const { type, id } = confirmDelete
+  confirmDelete.show = false
+  
+  try {
+    if (type === 'equipment') {
+      await api.deleteEquipmentType(id)
+      await store.fetchInventory()
+      logs.value = await api.getInventoryLogs()
+      delete rowEdits[id]
+    } else if (type === 'customer') {
+      await adminStore.deleteCustomer(id)
+    } else if (type === 'site') {
+      await adminStore.deleteSite(id)
+    }
+  } catch (e) {
+    swal.error(e.message)
+  }
+}
 
 // 設備 Modal
 const showEquipModal = ref(false)
@@ -88,26 +136,7 @@ async function addEquipmentType() {
   }
 }
 
-async function deleteEquipment(id) {
-  if (deleteEquipId.value === id) {
-    try {
-      await api.deleteEquipmentType(id)
-      await store.fetchInventory()
-      logs.value = await api.getInventoryLogs()
-      delete rowEdits[id]
-    } catch (e) {
-      alert(e.message)
-    } finally {
-      deleteEquipId.value = null
-    }
-  } else {
-    deleteEquipId.value = id
-    setTimeout(() => { if (deleteEquipId.value === id) deleteEquipId.value = null }, 3000)
-  }
-}
-
 // ── 客戶 Tab ──────────────────────────────────────────────
-const deleteCustomerId = ref(null)
 const showCustomerModal = ref(false)
 const newCustomer = ref('')
 const customerSaving = ref(false)
@@ -123,7 +152,7 @@ async function importFromInvoices() {
     importMsg.value = parts.length ? parts.join('、') : '沒有需要新增的資料'
     setTimeout(() => { importMsg.value = '' }, 3500)
   } catch (e) {
-    alert(e.message)
+    swal.error(e.message)
   }
 }
 
@@ -144,17 +173,7 @@ async function addCustomer() {
   }
 }
 
-async function deleteCustomer(id) {
-  if (deleteCustomerId.value === id) {
-    try { await adminStore.deleteCustomer(id) } catch (e) { alert(e.message) } finally { deleteCustomerId.value = null }
-  } else {
-    deleteCustomerId.value = id
-    setTimeout(() => { if (deleteCustomerId.value === id) deleteCustomerId.value = null }, 3000)
-  }
-}
-
 // ── 工地 Tab ──────────────────────────────────────────────
-const deleteSiteId = ref(null)
 const showSiteModal = ref(false)
 const newSite = ref('')
 const siteSaving = ref(false)
@@ -174,15 +193,6 @@ async function addSite() {
     siteError.value = e.message
   } finally {
     siteSaving.value = false
-  }
-}
-
-async function deleteSite(id) {
-  if (deleteSiteId.value === id) {
-    try { await adminStore.deleteSite(id) } catch (e) { alert(e.message) } finally { deleteSiteId.value = null }
-  } else {
-    deleteSiteId.value = id
-    setTimeout(() => { if (deleteSiteId.value === id) deleteSiteId.value = null }, 3000)
   }
 }
 
@@ -212,18 +222,18 @@ function fmtDate(d) {
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="space-y-1">
         <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">後台管理</h1>
-        <p class="text-sm font-medium text-slate-400 dark:text-slate-500">管理設備、客戶與工地選項，新增後即可在下拉選單中選取</p>
+        <p class="text-base font-medium text-slate-400 dark:text-slate-500">管理設備、客戶與工地選項，新增後即可在下拉選單中選取</p>
       </div>
       <!-- 新增按鈕（隨 Tab 切換） -->
-      <AppButton v-if="activeTab === 'equipment'" variant="emerald" @click="openEquipModal">
+      <AppButton v-if="activeTab === 'equipment'" variant="emerald" size="lg" @click="openEquipModal">
         <template #icon><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></template>
         新增設備品項
       </AppButton>
-      <AppButton v-else-if="activeTab === 'customers'" variant="primary" @click="openCustomerModal">
+      <AppButton v-else-if="activeTab === 'customers'" variant="primary" size="lg" @click="openCustomerModal">
         <template #icon><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></template>
         新增客戶
       </AppButton>
-      <AppButton v-else-if="activeTab === 'sites'" variant="amber" @click="openSiteModal">
+      <AppButton v-else-if="activeTab === 'sites'" variant="amber" size="lg" @click="openSiteModal">
         <template #icon><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></template>
         新增工地
       </AppButton>
@@ -235,7 +245,7 @@ function fmtDate(d) {
         v-for="tab in tabs"
         :key="tab.key"
         @click="activeTab = tab.key"
-        class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out select-none"
+        class="h-10 px-5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out select-none"
         :class="activeTab === tab.key
           ? tab.key === 'equipment'
             ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-[0_1px_4px_0_rgba(0,0,0,0.08)]'
@@ -282,12 +292,9 @@ function fmtDate(d) {
                           : 'border-slate-200/60 dark:border-slate-600/60 text-slate-500 dark:text-slate-400 hover:border-emerald-400/60 hover:text-emerald-600 hover:bg-emerald-50/50'">
                         {{ rowEdits[s.id]?.open ? '取消' : '異動數量' }}
                       </button>
-                      <button @click="deleteEquipment(s.id)"
-                        class="h-9 px-3 rounded-xl border font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]"
-                        :class="deleteEquipId === s.id
-                          ? 'border-red-400 text-white bg-red-500'
-                          : 'border-slate-200/60 dark:border-slate-600/60 text-slate-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50'">
-                        {{ deleteEquipId === s.id ? '確認刪除' : '刪除' }}
+                      <button @click="openDeleteConfirm('equipment', s)"
+                        class="h-9 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/60 text-slate-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]">
+                        刪除
                       </button>
                     </div>
                   </td>
@@ -299,9 +306,9 @@ function fmtDate(d) {
                       <div class="space-y-1.5">
                         <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">異動數量（正進負出）</label>
                         <div class="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-1 rounded-lg">
-                          <button @click="rowEdits[s.id].amount = String((Number(rowEdits[s.id].amount)||0) - 1)" class="w-9 h-9 font-semibold text-slate-400 hover:text-red-500 transition-colors text-lg">－</button>
+                          <button @click="rowEdits[s.id].amount = String((Number(rowEdits[s.id].amount)||0) - 1)" aria-label="減少數量" title="減少數量" class="w-9 h-9 font-semibold text-slate-400 hover:text-red-500 transition-colors text-lg">－</button>
                           <input v-model="rowEdits[s.id].amount" type="number" class="w-24 text-center text-base font-bold outline-none bg-transparent text-slate-800 dark:text-slate-200" placeholder="0">
-                          <button @click="rowEdits[s.id].amount = String((Number(rowEdits[s.id].amount)||0) + 1)" class="w-9 h-9 font-semibold text-slate-400 hover:text-emerald-500 transition-colors text-lg">＋</button>
+                          <button @click="rowEdits[s.id].amount = String((Number(rowEdits[s.id].amount)||0) + 1)" aria-label="增加數量" title="增加數量" class="w-9 h-9 font-semibold text-slate-400 hover:text-emerald-500 transition-colors text-lg">＋</button>
                         </div>
                       </div>
                       <div class="space-y-1.5 flex-1 max-w-md">
@@ -317,7 +324,12 @@ function fmtDate(d) {
                 </tr>
               </template>
               <tr v-if="store.stocks.length === 0">
-                <td colspan="5" class="py-16 text-center text-sm text-slate-400 dark:text-slate-600">尚無設備品項，請點選「新增設備品項」</td>
+                <td colspan="5" class="py-16 text-center">
+                  <div class="flex flex-col items-center justify-center gap-3 text-slate-400 dark:text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="opacity-20"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                    <p class="text-sm">尚無設備品項，請點選「新增設備品項」</p>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -326,7 +338,12 @@ function fmtDate(d) {
 
       <!-- 異動日誌 -->
       <AppCard title="庫存異動紀錄" subtitle="變更歷史" noPadding>
-        <div v-if="logs.length === 0" class="py-16 text-center text-sm text-slate-400 dark:text-slate-600">尚無異動記錄</div>
+        <div v-if="logs.length === 0" class="py-16 text-center">
+          <div class="flex flex-col items-center justify-center gap-3 text-slate-400 dark:text-slate-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="opacity-20"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <p class="text-sm">尚無異動記錄</p>
+          </div>
+        </div>
         <div v-else class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead>
@@ -391,18 +408,20 @@ function fmtDate(d) {
                 </td>
                 <td class="px-6 py-4 text-right">
                   <button
-                    @click="deleteCustomer(c.id)"
-                    class="h-9 px-3 rounded-xl border font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]"
-                    :class="deleteCustomerId === c.id
-                      ? 'border-red-400 text-white bg-red-500'
-                      : 'border-slate-200/60 dark:border-slate-600/60 text-slate-400 dark:text-slate-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50'"
+                    @click="openDeleteConfirm('customer', c)"
+                    class="h-9 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/60 text-slate-400 dark:text-slate-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]"
                   >
-                    {{ deleteCustomerId === c.id ? '確認刪除' : '刪除' }}
+                    刪除
                   </button>
                 </td>
               </tr>
               <tr v-if="adminStore.customers.length === 0">
-                <td colspan="3" class="py-16 text-center text-sm text-slate-400 dark:text-slate-600">尚無客戶，請點選「新增客戶」</td>
+                <td colspan="3" class="py-16 text-center">
+                  <div class="flex flex-col items-center justify-center gap-3 text-slate-400 dark:text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="opacity-20"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                    <p class="text-sm">尚無客戶，請點選「新增客戶」</p>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -442,24 +461,35 @@ function fmtDate(d) {
                 </td>
                 <td class="px-6 py-4 text-right">
                   <button
-                    @click="deleteSite(s.id)"
-                    class="h-9 px-3 rounded-xl border font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]"
-                    :class="deleteSiteId === s.id
-                      ? 'border-red-400 text-white bg-red-500'
-                      : 'border-slate-200/60 dark:border-slate-600/60 text-slate-400 dark:text-slate-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50'"
+                    @click="openDeleteConfirm('site', s)"
+                    class="h-9 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/60 text-slate-400 dark:text-slate-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]"
                   >
-                    {{ deleteSiteId === s.id ? '確認刪除' : '刪除' }}
+                    刪除
                   </button>
                 </td>
               </tr>
               <tr v-if="adminStore.sites.length === 0">
-                <td colspan="3" class="py-16 text-center text-sm text-slate-400 dark:text-slate-600">尚無工地，請點選「新增工地」</td>
+                <td colspan="3" class="py-16 text-center">
+                  <div class="flex flex-col items-center justify-center gap-3 text-slate-400 dark:text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="opacity-20"><path d="M3 21h18"/><path d="M9 21V9l3-3 3 3v12"/><path d="M5 21V5l3-3 3 3v16"/><path d="M13 21v-7l3-3 3 3v7"/><path d="M17 21v-3l3-3 3 3v3"/></svg>
+                    <p class="text-sm">尚無工地，請點選「新增工地」</p>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </AppCard>
     </template>
+
+    <!-- 刪除確認 Modal -->
+    <ConfirmModal
+      :show="confirmDelete.show"
+      :title="confirmDelete.title"
+      :message="confirmDelete.message"
+      @confirm="handleConfirmDelete"
+      @cancel="confirmDelete.show = false"
+    />
 
   </div>
 
