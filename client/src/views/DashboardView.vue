@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed, reactive, watch } from 'vue'
 import { useInventoryStore } from '../stores/inventory.js'
 import { useRentalsStore } from '../stores/rentals.js'
 import { useAdminStore } from '../stores/admin.js'
@@ -206,17 +206,50 @@ const kpiData = computed(() => {
   }
 })
 
+// ── 數字 count-up 動畫 ──────────────────────────────────────────────────────
+const animatedKpi = reactive({ curTotal: 0, curRental: 0, curFreight: 0, activeCount: 0 })
+const rAFs = []
+function countUp(end, key, duration = 1000) {
+  const from = animatedKpi[key]
+  const t0 = performance.now()
+  function step(now) {
+    const t = Math.min((now - t0) / duration, 1)
+    animatedKpi[key] = Math.round(from + (end - from) * (1 - Math.pow(1 - t, 3)))
+    if (t < 1) rAFs.push(requestAnimationFrame(step))
+  }
+  rAFs.push(requestAnimationFrame(step))
+}
+let kpiAnimated = false
+watch(kpiData, (val) => {
+  if (kpiAnimated) return
+  kpiAnimated = true
+  countUp(val.curTotal,   'curTotal',   1200)
+  countUp(val.curRental,  'curRental',  1000)
+  countUp(val.curFreight, 'curFreight', 1000)
+  countUp(val.activeCount,'activeCount', 800)
+})
+onUnmounted(() => rAFs.forEach(cancelAnimationFrame))
+
+// ── 甘特今日欄位索引 ─────────────────────────────────────────────────────────
+const todayColumnIndex = computed(() => {
+  const t = new Date()
+  const todayStr = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`
+  return chartDates.value.findIndex(d => {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayStr
+  })
+})
+
 onMounted(async () => {
   await Promise.all([inventoryStore.fetchInventory(), rentalsStore.fetchAll(), adminStore.fetchAll()])
 })
 </script>
 
 <template>
-  <div class="h-full flex flex-col gap-3 overflow-hidden">
+  <div class="h-full flex flex-col gap-3 overflow-hidden tech-bg">
     <!-- Row 1: KPI 速覽（橫向緊湊卡片） -->
     <div class="grid grid-cols-4 gap-3 shrink-0">
       <!-- 本月總收入 -->
-      <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 flex items-center gap-3 shadow-sm" style="animation-delay:0ms">
         <div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center shrink-0">
           <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -225,7 +258,7 @@ onMounted(async () => {
         <div class="flex-1 min-w-0">
           <p class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">本月總收入</p>
           <p class="text-lg font-black font-mono-num text-slate-900 dark:text-white tracking-tight leading-tight">
-            {{ kpiData.curTotal.toLocaleString() }}<span class="text-xs font-bold text-slate-400 ml-0.5">元</span>
+            {{ animatedKpi.curTotal.toLocaleString() }}<span class="text-xs font-bold text-slate-400 ml-0.5">元</span>
           </p>
         </div>
         <span v-if="kpiData.growth !== null" class="text-xs px-1.5 py-0.5 rounded font-bold shrink-0"
@@ -235,7 +268,7 @@ onMounted(async () => {
       </div>
 
       <!-- 本月租賃 -->
-      <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 flex items-center gap-3 shadow-sm" style="animation-delay:80ms">
         <div class="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-500/20 flex items-center justify-center shrink-0">
           <svg class="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -244,14 +277,14 @@ onMounted(async () => {
         <div class="flex-1 min-w-0">
           <p class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">本月租賃</p>
           <p class="text-lg font-black font-mono-num text-slate-900 dark:text-white tracking-tight leading-tight">
-            {{ kpiData.curRental.toLocaleString() }}<span class="text-xs font-bold text-slate-400 ml-0.5">元</span>
+            {{ animatedKpi.curRental.toLocaleString() }}<span class="text-xs font-bold text-slate-400 ml-0.5">元</span>
           </p>
         </div>
         <span class="w-2 h-2 rounded-full bg-violet-500 shrink-0"></span>
       </div>
 
       <!-- 本月運費 -->
-      <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 flex items-center gap-3 shadow-sm" style="animation-delay:160ms">
         <div class="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0">
           <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
@@ -260,14 +293,14 @@ onMounted(async () => {
         <div class="flex-1 min-w-0">
           <p class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">本月運費</p>
           <p class="text-lg font-black font-mono-num text-slate-900 dark:text-white tracking-tight leading-tight">
-            {{ kpiData.curFreight.toLocaleString() }}<span class="text-xs font-bold text-slate-400 ml-0.5">元</span>
+            {{ animatedKpi.curFreight.toLocaleString() }}<span class="text-xs font-bold text-slate-400 ml-0.5">元</span>
           </p>
         </div>
         <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
       </div>
 
       <!-- 進行中租賃 -->
-      <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 flex items-center gap-3 shadow-sm" style="animation-delay:240ms">
         <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center shrink-0">
           <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -276,7 +309,7 @@ onMounted(async () => {
         <div class="flex-1 min-w-0">
           <p class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">進行中租賃</p>
           <p class="text-lg font-black font-mono-num text-slate-900 dark:text-white tracking-tight leading-tight">
-            {{ kpiData.activeCount }}<span class="text-xs font-bold text-slate-400 ml-0.5">筆</span>
+            {{ animatedKpi.activeCount }}<span class="text-xs font-bold text-slate-400 ml-0.5">筆</span>
           </p>
         </div>
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
@@ -310,15 +343,26 @@ onMounted(async () => {
           <div class="flex items-center gap-2">
             <span class="w-1 h-3.5 bg-indigo-500 rounded-full"></span>
             <h2 class="text-xs font-semibold text-slate-900 dark:text-slate-100">近 6 個月請款趨勢</h2>
+            <span class="text-[10px] text-slate-400 dark:text-slate-500">本月</span>
+            <span class="text-sm font-black font-mono-num text-slate-800 dark:text-slate-100 tracking-tight">{{ kpiData.curTotal.toLocaleString() }}</span>
+            <span class="text-[10px] text-slate-400">元</span>
+            <span v-if="kpiData.growth !== null" class="text-[10px] px-1.5 py-0.5 rounded font-bold"
+              :class="kpiData.growth >= 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-500 dark:text-rose-400'">
+              {{ kpiData.growth >= 0 ? '▲' : '▼' }} {{ Math.abs(kpiData.growth) }}%
+            </span>
           </div>
           <div class="flex items-center gap-2">
             <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5">
-              <div class="w-1.5 h-1.5 rounded-full bg-violet-500"></div>
+              <svg width="14" height="6" viewBox="0 0 14 6"><line x1="0" y1="3" x2="14" y2="3" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="4 3"/></svg>
               <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300">租賃</span>
             </div>
             <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5">
-              <div class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+              <svg width="14" height="6" viewBox="0 0 14 6"><line x1="0" y1="3" x2="14" y2="3" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4 3"/></svg>
               <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300">運費</span>
+            </div>
+            <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5">
+              <svg width="14" height="6" viewBox="0 0 14 6"><line x1="0" y1="3" x2="14" y2="3" stroke="#6366f1" stroke-width="2.5"/></svg>
+              <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300">總額</span>
             </div>
           </div>
         </div>
@@ -376,7 +420,8 @@ onMounted(async () => {
                 <div class="w-22.5 shrink-0 px-2 py-0.5 border-r border-slate-200 dark:border-slate-700 sticky left-40 z-30 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-[11px]">開始日期</div>
                 <div class="w-12.5 shrink-0 px-2 py-0.5 border-r border-slate-200 dark:border-slate-700 sticky left-62.5 z-30 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-[11px]">天數</div>
                 <div class="flex flex-1 min-w-75">
-                  <div v-for="date in chartDates" :key="date.toISOString()" class="flex-1 min-w-5 border-r border-slate-200 dark:border-slate-700 text-center py-0.5 text-slate-500 dark:text-slate-400 text-[10px]">
+                  <div v-for="(date, idx) in chartDates" :key="date.toISOString()" class="flex-1 min-w-5 border-r border-slate-200 dark:border-slate-700 text-center py-0.5 text-[10px] relative"
+                    :class="idx === todayColumnIndex ? 'text-indigo-600 dark:text-indigo-400 font-black today-header' : 'text-slate-500 dark:text-slate-400'">
                     {{ String(date.getDate()).padStart(2, '0') }}
                   </div>
                 </div>
@@ -387,13 +432,17 @@ onMounted(async () => {
                 <div class="w-12.5 shrink-0 px-2 py-0.5 border-r border-slate-200 dark:border-slate-700 sticky left-62.5 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors text-[11px]">{{ task.actualDuration }}</div>
                 <div class="flex flex-1 relative bg-transparent min-w-75 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/30 transition-colors">
                   <div class="absolute inset-0 flex pointer-events-none">
-                    <div v-for="n in chartDates.length" :key="n" class="flex-1 min-w-5 border-r border-slate-100/50 dark:border-slate-800/30"></div>
+                    <div v-for="(_, idx) in chartDates" :key="idx" class="flex-1 min-w-5 border-r border-slate-100/50 dark:border-slate-800/30"></div>
                   </div>
                   <div class="relative py-0.5 w-full flex items-center">
                     <div class="absolute h-4 shadow-sm z-0 flex items-center px-1 text-[9px] font-semibold text-white overflow-hidden whitespace-nowrap transition-all duration-300 hover:opacity-90 cursor-default"
                       :style="{ left: `${task.leftPercent}%`, width: `${task.widthPercent}%`, backgroundColor: task.color, borderTopLeftRadius: task.isOutOfrangeLeft ? '0px' : '6px', borderBottomLeftRadius: task.isOutOfrangeLeft ? '0px' : '6px', borderTopRightRadius: task.isOutOfrangeRight ? '0px' : '6px', borderBottomRightRadius: task.isOutOfrangeRight ? '0px' : '6px' }"
                       @mousemove="handleMouseMove($event, task)" @mouseleave="handleMouseLeave">
                     </div>
+                  </div>
+                  <!-- 今日欄位 overlay（疊在 bar 上方） -->
+                  <div v-if="todayColumnIndex >= 0" class="absolute inset-y-0 pointer-events-none today-col z-10"
+                    :style="{ left: `${(todayColumnIndex / totalDays) * 100}%`, width: `${(1 / totalDays) * 100}%` }">
                   </div>
                 </div>
               </div>
@@ -411,4 +460,46 @@ onMounted(async () => {
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar { display: none; }
 .custom-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── 背景科技格線 ── */
+@keyframes grid-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 32px 32px; }
+}
+.tech-bg {
+  background-image:
+    linear-gradient(rgba(99,102,241,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+  animation: grid-drift 16s linear infinite;
+}
+:global(.dark) .tech-bg {
+  background-image:
+    linear-gradient(rgba(99,102,241,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,0.06) 1px, transparent 1px);
+}
+
+
+
+/* ── 甘特今日欄位高亮 ── */
+.today-col {
+  background: linear-gradient(to bottom,
+    rgba(99,102,241,0.10),
+    rgba(99,102,241,0.04));
+  border-left: 1px solid rgba(99,102,241,0.3);
+  border-right: 1px solid rgba(99,102,241,0.3);
+}
+
+/* 今日 header 底部發光標記 */
+.today-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 2px;
+  background: rgba(99,102,241,0.7);
+  border-radius: 9999px;
+}
 </style>

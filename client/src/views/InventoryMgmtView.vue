@@ -253,7 +253,7 @@ function fmtDate(d) {
         v-for="tab in tabs"
         :key="tab.key"
         @click="activeTab = tab.key"
-        class="h-10 px-5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out select-none"
+        class="h-10 px-5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out select-none cursor-pointer"
         :class="activeTab === tab.key
           ? tab.key === 'equipment'
             ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-[0_1px_4px_0_rgba(0,0,0,0.08)]'

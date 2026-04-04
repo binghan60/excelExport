@@ -73,6 +73,7 @@ const growthRate   = computed(() => {
 // ── 2. 主題色彩 ─────────────────────────────────────────────────────────────
 const VIOLET = '#8b5cf6'
 const AMBER  = '#f59e0b'
+const INDIGO = '#6366f1'
 
 function tickColor() { return isDark.value ? '#64748b' : '#94a3b8' }
 const monoFont = "'JetBrains Mono', 'Roboto Mono', monospace"
@@ -143,29 +144,40 @@ function buildConfig() {
           label: '租賃',
           data: chartData.value.map(d => d.rental),
           borderColor: VIOLET,
-          backgroundColor: (ctx) => {
-            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300)
-            g.addColorStop(0, 'rgba(139, 92, 246, 0.3)')
-            g.addColorStop(1, 'rgba(139, 92, 246, 0)')
-            return g
-          },
+          backgroundColor: 'rgba(139, 92, 246, 0.06)',
+          borderDash: [5, 4],
           tension: 0.45,
-          borderWidth: 3,
+          borderWidth: 2,
           fill: true,
           pointRadius: 0,
-          pointHoverRadius: 6,
+          pointHoverRadius: 5,
           pointHoverBackgroundColor: '#fff',
           pointHoverBorderColor: VIOLET,
-          pointHoverBorderWidth: 3,
+          pointHoverBorderWidth: 2,
         },
         {
           label: '運費',
           data: chartData.value.map(d => d.freight),
           borderColor: AMBER,
+          backgroundColor: 'rgba(245, 158, 11, 0.06)',
+          borderDash: [5, 4],
+          tension: 0.45,
+          borderWidth: 2,
+          fill: true,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#fff',
+          pointHoverBorderColor: AMBER,
+          pointHoverBorderWidth: 2,
+        },
+        {
+          label: '總額',
+          data: chartData.value.map(d => d.total),
+          borderColor: INDIGO,
           backgroundColor: (ctx) => {
             const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300)
-            g.addColorStop(0, 'rgba(245, 158, 11, 0.15)')
-            g.addColorStop(1, 'rgba(245, 158, 11, 0)')
+            g.addColorStop(0, 'rgba(99, 102, 241, 0.18)')
+            g.addColorStop(1, 'rgba(99, 102, 241, 0)')
             return g
           },
           tension: 0.45,
@@ -174,8 +186,8 @@ function buildConfig() {
           pointRadius: 0,
           pointHoverRadius: 6,
           pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: AMBER,
-          pointHoverBorderWidth: 3,
+          pointHoverBorderColor: INDIGO,
+          pointHoverBorderWidth: 2.5,
         }
       ]
     },
@@ -221,6 +233,7 @@ watch(chartData, () => {
   if (!chartInst) return
   chartInst.data.datasets[0].data = chartData.value.map(d => d.rental)
   chartInst.data.datasets[1].data = chartData.value.map(d => d.freight)
+  chartInst.data.datasets[2].data = chartData.value.map(d => d.total)
   chartInst.update()
 }, { deep: true })
 
