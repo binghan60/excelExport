@@ -29,7 +29,7 @@ watch(() => route.path, () => { sidebarOpen.value = false })
 const navItems = [
   {
     path: '/dashboard',
-    label: '數據總覽',
+    label: '總儀錶板',
     color: 'indigo',
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`
   },
@@ -191,7 +191,7 @@ const logoTextClasses = {
       </header>
 
       <main class="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50 dark:bg-slate-950">
-        <div class="max-w-350 mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <div class="max-w-350 mx-auto h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
           <RouterView />
         </div>
       </main>

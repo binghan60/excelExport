@@ -165,7 +165,7 @@ async function save() {
           </template>
         </AppButton>
         <div class="space-y-1">
-          <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{{ isEdit ? '修改運費請款' : '登錄新運費單' }}</h1>
+          <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{{ isEdit ? '修改運費請款' : '建立新運費單' }}</h1>
           <p class="text-base font-medium text-slate-400 dark:text-slate-500">運費請款明細資料輸入</p>
         </div>
       </div>
@@ -330,7 +330,7 @@ async function save() {
           <template #icon>
             <svg v-if="!saving" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           </template>
-          {{ saving ? '正在儲存…' : (isEdit ? '儲存修改' : '登錄運費單') }}
+          {{ saving ? '正在儲存…' : (isEdit ? '儲存修改' : '建立運費單') }}
         </AppButton>
         <!-- 金額摘要 -->
         <div class="flex flex-col items-end gap-2">

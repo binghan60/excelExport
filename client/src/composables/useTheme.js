@@ -3,13 +3,14 @@ import { ref, watch } from 'vue'
 const STORAGE_KEY = 'theme'
 const isDark = ref(false)
 
-// 初始化：讀取 localStorage，若無則跟隨系統
+// 初始化：讀取 localStorage，若無則預設為黑色
 function init() {
   const saved = localStorage.getItem(STORAGE_KEY)
   if (saved !== null) {
     isDark.value = saved === 'dark'
   } else {
-    isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
+    // 預設改為黑色
+    isDark.value = true
   }
   applyClass()
 }

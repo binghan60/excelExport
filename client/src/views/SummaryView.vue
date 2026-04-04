@@ -5,6 +5,7 @@ import { useAdminStore } from '../stores/admin.js'
 import AppButton from '../components/base/AppButton.vue'
 import AppCard from '../components/base/AppCard.vue'
 import MonthPicker from '../components/MonthPicker.vue'
+import ExportPreviewModal from '../components/base/ExportPreviewModal.vue'
 
 const adminStore = useAdminStore()
 
@@ -19,6 +20,8 @@ const allFreights = ref([])
 const openClients = ref(new Set())
 const exportingSet = ref(new Set())
 const errorMap = ref({})
+
+const previewGroup = ref(null)
 
 onMounted(async () => {
   ;[allRentals.value, allFreights.value] = await Promise.all([
@@ -74,22 +77,29 @@ function toggle(name) {
   openClients.value = new Set(openClients.value)
 }
 
-async function exportSummary(group) {
+function startExport(group) {
+  previewGroup.value = group
+}
+
+async function exportSummary(groupArg) {
+  const group = groupArg || previewGroup.value
+  if (!group) return
+  
   const key = group.client_name
   errorMap.value[key] = ''
   exportingSet.value.add(key)
   exportingSet.value = new Set(exportingSet.value)
+  
   try {
     if (group.rentals.length === 0) {
-      // 僅有運費 → 匯出報價單（一份合併）
       await api.exportQuotation(group.client_name, yearMonth.value)
     } else {
-      // 有租賃 → 每種設備各一份 + 請款單總表
       for (const inv of group.rentals) {
         await api.exportRental(inv.id)
       }
       await api.exportSummary(group.client_name, yearMonth.value)
     }
+    previewGroup.value = null // 若從預覽進入，完成後關閉
   } catch (e) {
     errorMap.value[key] = e.message
   } finally {
@@ -105,6 +115,14 @@ function fmt(num) {
 
 <template>
   <div class="space-y-6 animate-in fade-in duration-500">
+    <ExportPreviewModal
+      :show="!!previewGroup"
+      :group="previewGroup || {}"
+      :year-month="yearMonth"
+      :loading="exportingSet.has(previewGroup?.client_name)"
+      @confirm="exportSummary()"
+      @cancel="previewGroup = null"
+    />
     <!-- 頁面標題 -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="space-y-1">
@@ -179,17 +197,34 @@ function fmt(num) {
               <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-0.5">本月應收（未稅）</p>
               <p class="text-xl font-bold text-slate-900 dark:text-slate-100 font-mono-num">{{ fmt(group.subtotal) }} <span class="text-xs font-normal text-slate-400 dark:text-slate-500">元</span></p>
             </div>
-            <AppButton
-              variant="violet"
-              size="md"
-              :loading="exportingSet.has(group.client_name)"
-              @click.stop="exportSummary(group)"
-            >
-              <template #icon>
-                <svg v-if="!exportingSet.has(group.client_name)" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              </template>
-              匯出對帳單
-            </AppButton>
+
+            <div class="flex items-center gap-2">
+              <!-- 預覽按鈕 (眼睛圖示) - 恢復為點擊觸發 -->
+              <button
+                class="relative group/btn w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-violet-600 hover:text-white transition-all duration-300 active:scale-90"
+                @click.stop="startExport(group)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
+                
+                <!-- Hover 提示文字 -->
+                <span class="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-slate-800">
+                  預覽對帳單
+                </span>
+              </button>
+
+              <!-- 匯出按鈕 (原文字按鈕) -->
+              <AppButton
+                variant="violet"
+                size="md"
+                :loading="exportingSet.has(group.client_name)"
+                @click.stop="exportSummary(group)"
+              >
+                <template #icon>
+                  <svg v-if="!exportingSet.has(group.client_name)" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </template>
+                匯出對帳單
+              </AppButton>
+            </div>
           </div>
         </div>
 
