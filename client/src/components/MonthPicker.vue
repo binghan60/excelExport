@@ -62,7 +62,7 @@ function isSelected(month) {
       class="mp-trigger"
       :class="[
         transparent ? 'mp-trigger--transparent' : 'mp-trigger--full',
-        variant === 'amber' ? 'mp-accent--amber' : 'mp-accent--blue',
+        variant === 'amber' ? 'mp-accent--amber' : variant === 'indigo' ? 'mp-accent--indigo' : 'mp-accent--blue',
         { 'mp-open': show, 'mp--dense': dense }
       ]"
       @click="open"
@@ -128,6 +128,10 @@ function isSelected(month) {
 .mp-accent--amber.mp-trigger--full:hover, .mp-accent--amber.mp-trigger--full.mp-open { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
 .mp-accent--amber.mp-trigger--transparent { color: #d97706; }
 
+/* Indigo */
+.mp-accent--indigo.mp-trigger--full:hover, .mp-accent--indigo.mp-trigger--full.mp-open { background: #f5f3ff; border-color: #6366f1; color: #3730a3; }
+.mp-accent--indigo.mp-trigger--transparent { color: #4f46e5; }
+
 .mp-chevron { margin-left: 6px; opacity: 0.5; flex-shrink: 0; }
 .mp-trigger--transparent .mp-chevron { display: none; }
 
@@ -178,6 +182,9 @@ function isSelected(month) {
 
 :global(.dark .mp-accent--blue.mp-trigger--full:hover),
 :global(.dark .mp-accent--blue.mp-trigger--full.mp-open) { background: #172554; border-color: #3b82f6; color: #93c5fd; }
+
+:global(.dark .mp-accent--indigo.mp-trigger--full:hover),
+:global(.dark .mp-accent--indigo.mp-trigger--full.mp-open) { background: #1e1b4b; border-color: #6366f1; color: #c7d2fe; }
 
 :global(.dark .mp-accent--amber.mp-trigger--full:hover),
 :global(.dark .mp-accent--amber.mp-trigger--full.mp-open) { background: #1c1208; border-color: #f59e0b; color: #fbbf24; }

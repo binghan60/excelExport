@@ -7,7 +7,7 @@ import { useTheme } from '../composables/useTheme.js'
 
 import AppButton from '../components/base/AppButton.vue'
 import AppCard from '../components/base/AppCard.vue'
-import DateRangePicker from '../components/DateRangePicker.vue'
+import MonthPicker from '../components/MonthPicker.vue'
 import RevenueChart from '../components/RevenueChart.vue'
 
 const inventoryStore = useInventoryStore()
@@ -58,20 +58,12 @@ const COLORS = computed(() => {
 })
 
 const today = new Date()
-const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
-const filters = ref({ startDate: formatDate(firstDay), endDate: formatDate(lastDay), client: '', site: '', equipment: '' })
+const filters = ref({ month: currentMonth, client: '', site: '', equipment: '' })
 
-function formatDate(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
-function resetFilters() { 
-  filters.value = { startDate: formatDate(firstDay), endDate: formatDate(lastDay), client: '', site: '', equipment: '' } 
+function resetFilters() {
+  filters.value = { month: currentMonth, client: '', site: '', equipment: '' }
 }
 
 const equipmentOptions = computed(() => {
@@ -82,10 +74,16 @@ const equipmentOptions = computed(() => {
   return [...equipments].sort()
 })
 
-// 當日期篩選為空（全部）時，自動從資料推算最小/最大日期範圍
+// 從 month (YYYY-MM) 推算首末日；為空（全部）時從資料推算範圍
 const effectiveRange = computed(() => {
-  if (filters.value.startDate && filters.value.endDate)
-    return { start: filters.value.startDate, end: filters.value.endDate }
+  if (filters.value.month) {
+    const [y, m] = filters.value.month.split('-').map(Number)
+    const last = new Date(y, m, 0).getDate()
+    return {
+      start: `${filters.value.month}-01`,
+      end:   `${filters.value.month}-${String(last).padStart(2, '0')}`
+    }
+  }
 
   let minDate = '', maxDate = ''
   rentalsStore.rentals.forEach(inv => {
@@ -216,15 +214,8 @@ onMounted(async () => {
           </select>
         </div>
         <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">查詢區間</label>
-          <DateRangePicker
-            block
-            variant="indigo"
-            :start-date="filters.startDate"
-            :end-date="filters.endDate"
-            @update:start-date="filters.startDate = $event"
-            @update:end-date="filters.endDate = $event"
-          />
+          <label class="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">查詢月份</label>
+          <MonthPicker v-model="filters.month" variant="indigo" dense show-all />
         </div>
         <AppButton variant="soft-indigo" size="dense" @click="resetFilters">重設篩選</AppButton>
       </div>
