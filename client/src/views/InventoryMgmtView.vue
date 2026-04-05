@@ -205,9 +205,10 @@ async function addSite() {
 }
 
 // ── 初始化 ────────────────────────────────────────────────
-onMounted(async () => {
-  await Promise.all([store.fetchInventory(), adminStore.fetchAll()])
-  logs.value = await api.getInventoryLogs()
+onMounted(() => {
+  store.fetchInventory()
+  adminStore.fetchAll()
+  api.getInventoryLogs().then(res => { logs.value = res })
   store.stocks.forEach(s => initRow(s.id))
 })
 

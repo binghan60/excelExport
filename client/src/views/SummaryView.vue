@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { api } from '../api/index.js'
+import { useRentalsStore } from '../stores/rentals.js'
 import { useAdminStore } from '../stores/admin.js'
 import AppButton from '../components/base/AppButton.vue'
 import AppCard from '../components/base/AppCard.vue'
 import MonthPicker from '../components/MonthPicker.vue'
 import ExportPreviewModal from '../components/base/ExportPreviewModal.vue'
 
+const rentalsStore = useRentalsStore()
 const adminStore = useAdminStore()
 
 const now = new Date()
@@ -15,18 +16,15 @@ const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart
 const yearMonth = ref(currentMonth)
 const filterClient = ref('')
 const filterSite = ref('')
-const allRentals = ref([])
-const allFreights = ref([])
 const openClients = ref(new Set())
 const exportingSet = ref(new Set())
 const errorMap = ref({})
 
 const previewGroup = ref(null)
 
-onMounted(async () => {
-  ;[allRentals.value, allFreights.value] = await Promise.all([
-    api.getRentals(), api.getFreights(), adminStore.fetchAll()
-  ])
+onMounted(() => {
+  rentalsStore.fetchAll()
+  adminStore.fetchAll()
 })
 
 function resetFilters() {
@@ -40,13 +38,13 @@ const clientGroups = computed(() => {
   const map = {}
   const clientFilter = filterClient.value
   const siteFilter = filterSite.value
-  for (const inv of allRentals.value) {
+  for (const inv of rentalsStore.rentals) {
     if (ym && inv.year_month !== ym) continue
     if (siteFilter && inv.site_name !== siteFilter) continue
     if (!map[inv.client_name]) map[inv.client_name] = { rentals: [], freights: [] }
     map[inv.client_name].rentals.push(inv)
   }
-  for (const inv of allFreights.value) {
+  for (const inv of rentalsStore.freights) {
     if (ym && inv.year_month !== ym) continue
     // 只有當工地篩選空白，或該客戶已有租賃資料時才帶入運費
     if (siteFilter && !map[inv.client_name]) continue

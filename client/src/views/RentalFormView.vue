@@ -55,7 +55,8 @@ const editId = computed(() => route.params.id ? String(route.params.id) : null)
 const isEdit = computed(() => !!editId.value)
 
 onMounted(async () => {
-  ;[equipmentTypes.value] = await Promise.all([api.getEquipmentTypes(), adminStore.fetchAll()])
+  api.getEquipmentTypes().then(res => { equipmentTypes.value = res })
+  adminStore.fetchAll()
   const now = new Date()
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   setYearMonth(defaultMonth)

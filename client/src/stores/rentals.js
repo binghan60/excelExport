@@ -7,10 +7,30 @@ export const useRentalsStore = defineStore('rentals', () => {
   const freights = ref([])
   const loading = ref(false)
 
-  async function fetchAll() {
+  async function fetchRentals(force = false) {
+    if (!force && rentals.value.length > 0) return
     loading.value = true
     try {
-      ;[rentals.value, freights.value] = await Promise.all([api.getRentals(), api.getFreights()])
+      rentals.value = await api.getRentals()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchFreights(force = false) {
+    if (!force && freights.value.length > 0) return
+    loading.value = true
+    try {
+      freights.value = await api.getFreights()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchAll(force = false) {
+    loading.value = (rentals.value.length === 0 || freights.value.length === 0)
+    try {
+      await Promise.all([fetchRentals(force), fetchFreights(force)])
     } finally {
       loading.value = false
     }
@@ -86,7 +106,7 @@ export const useRentalsStore = defineStore('rentals', () => {
 
   return {
     rentals, freights, loading,
-    fetchAll,
+    fetchAll, fetchRentals, fetchFreights,
     createRental, updateRental, deleteRental,
     createFreight, updateFreight, deleteFreight,
   }

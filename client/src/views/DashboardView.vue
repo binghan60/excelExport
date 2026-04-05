@@ -92,6 +92,8 @@ const effectiveRange = computed(() => {
     if (!matchClient || !matchSite || !inv.rows) return
     inv.rows.forEach(r => {
       if (!r.start_date) return
+      const matchEquipment = !filters.value.equipment || r.equipment_name === filters.value.equipment
+      if (!matchEquipment) return
       if (!minDate || r.start_date < minDate) minDate = r.start_date
       const end = r.end_date || r.return_date || r.start_date
       if (!maxDate || end > maxDate) maxDate = end
@@ -130,7 +132,8 @@ const ganttTasks = computed(() => {
     if (matchClient && matchSite && inv.rows) {
       inv.rows.forEach((r, idx) => {
         const matchesDate = !!r.start_date
-        const isShown = !hiddenEquipmentTypes.value.includes(r.equipment_name)
+        const matchEquipment = !filters.value.equipment || r.equipment_name === filters.value.equipment
+        const isShown = !hiddenEquipmentTypes.value.includes(r.equipment_name) && matchEquipment
         if (matchesDate && isShown) {
           const tStart = new Date(`${r.start_date} 00:00:00`)
           const tEnd = new Date(`${r.end_date || r.return_date || r.start_date} 23:59:59`)
@@ -208,27 +211,27 @@ const kpiData = computed(() => {
 
 // ── 數字 count-up 動畫 ──────────────────────────────────────────────────────
 const animatedKpi = reactive({ curTotal: 0, curRental: 0, curFreight: 0, activeCount: 0 })
-const rAFs = []
+const runningRAFs = {}
 function countUp(end, key, duration = 1000) {
+  if (runningRAFs[key]) cancelAnimationFrame(runningRAFs[key])
   const from = animatedKpi[key]
+  if (from === end) return
   const t0 = performance.now()
   function step(now) {
     const t = Math.min((now - t0) / duration, 1)
     animatedKpi[key] = Math.round(from + (end - from) * (1 - Math.pow(1 - t, 3)))
-    if (t < 1) rAFs.push(requestAnimationFrame(step))
+    if (t < 1) runningRAFs[key] = requestAnimationFrame(step)
+    else delete runningRAFs[key]
   }
-  rAFs.push(requestAnimationFrame(step))
+  runningRAFs[key] = requestAnimationFrame(step)
 }
-let kpiAnimated = false
 watch(kpiData, (val) => {
-  if (kpiAnimated) return
-  kpiAnimated = true
   countUp(val.curTotal,   'curTotal',   1200)
   countUp(val.curRental,  'curRental',  1000)
   countUp(val.curFreight, 'curFreight', 1000)
   countUp(val.activeCount,'activeCount', 800)
-})
-onUnmounted(() => rAFs.forEach(cancelAnimationFrame))
+}, { deep: true, immediate: true })
+onUnmounted(() => Object.values(runningRAFs).forEach(cancelAnimationFrame))
 
 // ── 甘特今日欄位索引 ─────────────────────────────────────────────────────────
 const todayColumnIndex = computed(() => {
@@ -239,8 +242,11 @@ const todayColumnIndex = computed(() => {
   })
 })
 
-onMounted(async () => {
-  await Promise.all([inventoryStore.fetchInventory(), rentalsStore.fetchAll(), adminStore.fetchAll()])
+onMounted(() => {
+  // 不使用 await 以避免阻塞組件初次渲染，且 store 內部已有快取機制
+  inventoryStore.fetchInventory()
+  rentalsStore.fetchAll()
+  adminStore.fetchAll()
 })
 </script>
 
@@ -280,7 +286,6 @@ onMounted(async () => {
             {{ animatedKpi.curRental.toLocaleString() }}<span class="text-xs font-bold text-slate-400 ml-0.5">元</span>
           </p>
         </div>
-        <span class="w-2 h-2 rounded-full bg-violet-500 shrink-0"></span>
       </div>
 
       <!-- 本月運費 -->
@@ -296,7 +301,6 @@ onMounted(async () => {
             {{ animatedKpi.curFreight.toLocaleString() }}<span class="text-xs font-bold text-slate-400 ml-0.5">元</span>
           </p>
         </div>
-        <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
       </div>
 
       <!-- 進行中租賃 -->
@@ -312,7 +316,6 @@ onMounted(async () => {
             {{ animatedKpi.activeCount }}<span class="text-xs font-bold text-slate-400 ml-0.5">筆</span>
           </p>
         </div>
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
       </div>
     </div>
 
@@ -343,13 +346,6 @@ onMounted(async () => {
           <div class="flex items-center gap-2">
             <span class="w-1 h-3.5 bg-indigo-500 rounded-full"></span>
             <h2 class="text-xs font-semibold text-slate-900 dark:text-slate-100">近 6 個月請款趨勢</h2>
-            <span class="text-[10px] text-slate-400 dark:text-slate-500">本月</span>
-            <span class="text-sm font-black font-mono-num text-slate-800 dark:text-slate-100 tracking-tight">{{ kpiData.curTotal.toLocaleString() }}</span>
-            <span class="text-[10px] text-slate-400">元</span>
-            <span v-if="kpiData.growth !== null" class="text-[10px] px-1.5 py-0.5 rounded font-bold"
-              :class="kpiData.growth >= 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-500 dark:text-rose-400'">
-              {{ kpiData.growth >= 0 ? '▲' : '▼' }} {{ Math.abs(kpiData.growth) }}%
-            </span>
           </div>
           <div class="flex items-center gap-2">
             <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5">

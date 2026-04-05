@@ -17,8 +17,9 @@ const filters = ref({ client: '', site: '', month: currentMonth })
 const expandedId = ref(null)
 const deleteTarget = ref(null)
 
-onMounted(async () => {
-  await Promise.all([store.fetchAll(), adminStore.fetchAll()])
+onMounted(() => {
+  store.fetchFreights()
+  adminStore.fetchAll()
 })
 
 const filteredFreights = computed(() => store.freights.filter(f =>

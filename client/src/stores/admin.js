@@ -11,7 +11,8 @@ export const useAdminStore = defineStore('admin', () => {
   const allCustomerNames = computed(() => customers.value.map(c => c.name))
   const allSiteNames     = computed(() => sites.value.map(s => s.name))
 
-  async function fetchAll() {
+  async function fetchAll(force = false) {
+    if (!force && (customers.value.length > 0 || sites.value.length > 0)) return
     loading.value = true
     try {
       ;[customers.value, sites.value] = await Promise.all([api.getCustomers(), api.getSites()])

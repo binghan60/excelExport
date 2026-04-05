@@ -6,7 +6,8 @@ export const useInventoryStore = defineStore('inventory', () => {
   const stocks = ref([])
   const loading = ref(false)
 
-  async function fetchInventory() {
+  async function fetchInventory(force = false) {
+    if (!force && stocks.value.length > 0) return
     loading.value = true
     try {
       stocks.value = await api.getInventory()
