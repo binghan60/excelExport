@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useField, useForm } from 'vee-validate'
 import * as yup from 'yup'
 import { useInventoryStore } from '../stores/inventory.js'
@@ -23,7 +23,7 @@ const tabs = [
 const store = useInventoryStore()
 const adminStore = useAdminStore()
 const swal = useSwal()
-const logs = ref([])
+const logs = computed(() => store.logs)
 const rowEdits = reactive({})
 
 // ── 刪除確認 ──────────────────────────────────────────────
@@ -60,7 +60,7 @@ async function handleConfirmDelete() {
     if (type === 'equipment') {
       await api.deleteEquipmentType(id)
       await store.fetchInventory()
-      logs.value = await api.getInventoryLogs()
+      await store.fetchLogs(true)
       delete rowEdits[id]
     } else if (type === 'customer') {
       await adminStore.deleteCustomer(id)
@@ -117,7 +117,6 @@ async function confirmAdjust(stock) {
   edit.saving = true
   try {
     await store.adjust(stock.id, amt, edit.reason)
-    logs.value = await api.getInventoryLogs()
     edit.amount = ''; edit.reason = ''; edit.open = false
     edit.success = `已異動 ${amt} ${stock.unit}`
     setTimeout(() => { edit.success = '' }, 2500)
@@ -138,7 +137,7 @@ async function addEquipmentType() {
   try {
     await api.addEquipmentType({ name: equipName.value.trim(), unit: equipUnit.value.trim() })
     await store.fetchInventory()
-    logs.value = await api.getInventoryLogs()
+    await store.fetchLogs(true)
     store.stocks.forEach(s => { if (!rowEdits[s.id]) initRow(s.id) })
     closeEquipModal()
   } catch (e) {
@@ -208,7 +207,7 @@ async function addSite() {
 onMounted(() => {
   store.fetchInventory()
   adminStore.fetchAll()
-  api.getInventoryLogs().then(res => { logs.value = res })
+  store.fetchLogs()
   store.stocks.forEach(s => initRow(s.id))
 })
 

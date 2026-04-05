@@ -245,6 +245,8 @@ const todayColumnIndex = computed(() => {
 onMounted(() => {
   // 不使用 await 以避免阻塞組件初次渲染，且 store 內部已有快取機制
   inventoryStore.fetchInventory()
+  inventoryStore.fetchEquipmentTypes() // 背景預取設備種類
+  inventoryStore.fetchLogs()           // 背景預取庫存日誌
   rentalsStore.fetchAll()
   adminStore.fetchAll()
 })

@@ -7,6 +7,7 @@ import { useSwal } from '../composables/useSwal.js'
 import { api } from '../api/index.js'
 import { useRentalsStore } from '../stores/rentals.js'
 import { useAdminStore } from '../stores/admin.js'
+import { useInventoryStore } from '../stores/inventory.js'
 import DateRangePicker from '../components/DateRangePicker.vue'
 import MonthPicker from '../components/MonthPicker.vue'
 import NumberInput from '../components/base/NumberInput.vue'
@@ -19,8 +20,9 @@ const router = useRouter()
 const route = useRoute()
 const store = useRentalsStore()
 const adminStore = useAdminStore()
+const inventoryStore = useInventoryStore()
 
-const equipmentTypes = ref([])
+const equipmentTypes = computed(() => inventoryStore.equipmentTypes)
 const saving = ref(false)
 const serverError = ref('')
 
@@ -55,7 +57,8 @@ const editId = computed(() => route.params.id ? String(route.params.id) : null)
 const isEdit = computed(() => !!editId.value)
 
 onMounted(async () => {
-  api.getEquipmentTypes().then(res => { equipmentTypes.value = res })
+  // 背景預取交給 Dashboard，但在這裡確保資料存在（store 內部有快取機制）
+  inventoryStore.fetchEquipmentTypes()
   adminStore.fetchAll()
   const now = new Date()
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
