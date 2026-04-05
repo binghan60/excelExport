@@ -23,15 +23,6 @@ const handleMouseMove = (e, task) => {
 }
 const handleMouseLeave = () => { tooltip.value.show = false }
 
-const hiddenEquipmentTypes = ref([])
-const toggleEquipmentType = (type) => {
-  if (hiddenEquipmentTypes.value.includes(type)) {
-    hiddenEquipmentTypes.value = hiddenEquipmentTypes.value.filter(t => t !== type)
-  } else {
-    hiddenEquipmentTypes.value.push(type)
-  }
-}
-
 // 基礎顏色庫
 const BASE_COLORS = [
   { light: '#dc2626', dark: '#ef4444' }, // red
@@ -133,7 +124,7 @@ const ganttTasks = computed(() => {
       inv.rows.forEach((r, idx) => {
         const matchesDate = !!r.start_date
         const matchEquipment = !filters.value.equipment || r.equipment_name === filters.value.equipment
-        const isShown = !hiddenEquipmentTypes.value.includes(r.equipment_name) && matchEquipment
+        const isShown = matchEquipment
         if (matchesDate && isShown) {
           const tStart = new Date(`${r.start_date} 00:00:00`)
           const tEnd = new Date(`${r.end_date || r.return_date || r.start_date} 23:59:59`)
@@ -255,7 +246,7 @@ onMounted(() => {
 <template>
   <div class="h-full flex flex-col gap-3 overflow-hidden tech-bg">
     <!-- Row 1: KPI 速覽（橫向緊湊卡片） -->
-    <div class="grid grid-cols-4 gap-3 shrink-0">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
       <!-- 本月總收入 -->
       <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3 flex items-center gap-3 shadow-sm" style="animation-delay:0ms">
         <div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center shrink-0">
@@ -341,9 +332,9 @@ onMounted(() => {
       </div>
     </AppCard>
 
-    <!-- Row 3: 趨勢圖（左 2/3）+ 庫存監控（右 1/3） -->
-    <div class="grid grid-cols-3 gap-3 shrink-0 h-56">
-      <section class="col-span-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden shadow-sm flex flex-col">
+    <!-- Row 3: 趨勢圖（大螢幕左 2/3）+ 庫存監控（右 1/3） -->
+    <div class="flex flex-col lg:flex-row gap-3 shrink-0 lg:h-56">
+      <section class="flex-1 lg:w-2/3 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden shadow-sm flex flex-col min-h-[250px] lg:min-h-0">
         <div class="px-4 py-2 border-b border-slate-100/80 dark:border-slate-700/60 flex items-center justify-between shrink-0">
           <div class="flex items-center gap-2">
             <span class="w-1 h-3.5 bg-indigo-500 rounded-full"></span>
@@ -369,21 +360,23 @@ onMounted(() => {
         </div>
       </section>
 
-      <section class="col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden shadow-sm flex flex-col">
-        <div class="px-4 py-2 border-b border-slate-100/80 dark:border-slate-700/60 flex items-center gap-2 shrink-0">
-          <span class="w-1 h-3.5 bg-emerald-600 rounded-full"></span>
-          <h2 class="text-xs font-semibold text-slate-900 dark:text-slate-100">庫存即時監控</h2>
+      <section class="lg:w-1/3 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden shadow-sm flex flex-col min-h-[250px] lg:min-h-0">
+        <div class="px-4 py-2 border-b border-slate-100/80 dark:border-slate-700/60 flex flex-col sm:flex-row items-baseline gap-2 shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="w-1 h-3.5 bg-emerald-600 rounded-full"></span>
+            <h2 class="text-xs font-semibold text-slate-900 dark:text-slate-100">庫存即時監控</h2>
+          </div>
         </div>
-        <div class="flex-1 px-4 py-2 flex flex-col justify-around min-h-0">
+        <div class="flex-1 px-4 py-2 flex flex-col justify-around min-h-0 overflow-y-auto custom-scrollbar">
           <div v-for="stock in inventoryStore.stocks" :key="stock.id" class="flex items-center gap-2">
-            <span class="w-16 text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">{{ stock.name }}</span>
+            <span class="w-16 text-sm font-bold text-slate-700 dark:text-slate-200 shrink-0">{{ stock.name }}</span>
             <div class="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div class="h-full rounded-full transition-all duration-700"
                 :style="{ width: `${stock.total_quantity > 0 ? (stock.rented_out / stock.total_quantity) * 100 : 0}%` }"
                 :class="stock.available <= 0 ? 'bg-rose-500' : (stock.rented_out / (stock.total_quantity || 1)) >= 0.8 ? 'bg-amber-500' : 'bg-emerald-500'">
               </div>
             </div>
-            <span class="text-xs font-mono-num text-slate-600 dark:text-slate-400 shrink-0 w-10 text-right">
+            <span class="text-sm font-mono-num text-slate-600 dark:text-slate-400 shrink-0 w-10 text-right">
               {{ stock.available }}<span class="text-slate-300 dark:text-slate-600">/{{ stock.total_quantity }}</span>
             </span>
             <span class="text-[10px] px-1 py-0.5 rounded font-bold shrink-0 w-9 text-center"
@@ -402,10 +395,10 @@ onMounted(() => {
           <span class="w-1 h-3.5 bg-indigo-600 rounded-full"></span>
           <h2 class="text-xs font-semibold text-slate-900 dark:text-slate-100">租賃時程視覺化</h2>
         </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <div v-for="(color, name) in COLORS" :key="name" class="flex items-center gap-1.5 cursor-pointer select-none transition-all duration-200" :class="hiddenEquipmentTypes.includes(name) ? 'opacity-30 grayscale-[0.5]' : 'opacity-100'" @click="toggleEquipmentType(name)">
-            <span class="w-2 h-2 rounded-full" :style="{ background: color }"></span>
-            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ name }}</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <div v-for="(color, name) in COLORS" :key="name" class="flex items-center gap-1.5 select-none px-1.5 py-1">
+            <span class="w-2.5 h-2.5 rounded-full shadow-sm" :style="{ background: color }"></span>
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ name }}</span>
           </div>
         </div>
       </div>
@@ -414,20 +407,20 @@ onMounted(() => {
           <div class="overflow-auto flex-1 relative custom-scrollbar">
             <div class="min-w-max md:min-w-0">
               <div class="flex sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 font-medium text-slate-700 dark:text-slate-200 shadow-sm">
-                <div class="w-40 shrink-0 px-3 py-0.5 border-r border-slate-200 dark:border-slate-700 sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 flex items-center text-[11px]">出租內容</div>
-                <div class="w-22.5 shrink-0 px-2 py-0.5 border-r border-slate-200 dark:border-slate-700 sticky left-40 z-30 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-[11px]">開始日期</div>
-                <div class="w-12.5 shrink-0 px-2 py-0.5 border-r border-slate-200 dark:border-slate-700 sticky left-62.5 z-30 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-[11px]">天數</div>
+                <div class="w-48 shrink-0 px-3 py-1 border-r border-slate-200 dark:border-slate-700 sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 flex items-center text-xs">出租內容</div>
+                <div class="w-24 shrink-0 px-2 py-1 border-r border-slate-200 dark:border-slate-700 sticky left-48 z-30 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-xs">開始日期</div>
+                <div class="w-14 shrink-0 px-2 py-1 border-r border-slate-200 dark:border-slate-700 sticky left-72 z-30 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-xs">天數</div>
                 <div class="flex flex-1 min-w-75">
-                  <div v-for="(date, idx) in chartDates" :key="date.toISOString()" class="flex-1 min-w-5 border-r border-slate-200 dark:border-slate-700 text-center py-0.5 text-[10px] relative"
+                  <div v-for="(date, idx) in chartDates" :key="date.toISOString()" class="flex-1 min-w-5 border-r border-slate-200 dark:border-slate-700 text-center py-1 relative"
                     :class="idx === todayColumnIndex ? 'text-indigo-600 dark:text-indigo-400 font-black today-header' : 'text-slate-500 dark:text-slate-400'">
                     {{ String(date.getDate()).padStart(2, '0') }}
                   </div>
                 </div>
               </div>
               <div v-for="task in ganttTasks" :key="task.id" class="flex border-b border-slate-100 dark:border-slate-800/60 group text-sm">
-                <div class="w-40 shrink-0 px-3 py-0.5 border-r border-slate-200 dark:border-slate-700 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 truncate text-slate-800 dark:text-slate-300 transition-colors text-[11px]" @mousemove="handleMouseMove($event, task)" @mouseleave="handleMouseLeave">{{ task.text }}</div>
-                <div class="w-22.5 shrink-0 px-2 py-0.5 border-r border-slate-200 dark:border-slate-700 sticky left-40 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors text-[11px]">{{ task.startDateStr }}</div>
-                <div class="w-12.5 shrink-0 px-2 py-0.5 border-r border-slate-200 dark:border-slate-700 sticky left-62.5 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors text-[11px]">{{ task.actualDuration }}</div>
+                <div class="w-48 shrink-0 px-3 py-1.5 border-r border-slate-200 dark:border-slate-700 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 truncate text-slate-800 dark:text-slate-300 transition-colors text-xs" @mousemove="handleMouseMove($event, task)" @mouseleave="handleMouseLeave">{{ task.text }}</div>
+                <div class="w-24 shrink-0 px-2 py-1.5 border-r border-slate-200 dark:border-slate-700 sticky left-48 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors text-xs">{{ task.startDateStr }}</div>
+                <div class="w-14 shrink-0 px-2 py-1.5 border-r border-slate-200 dark:border-slate-700 sticky left-72 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors text-xs">{{ task.actualDuration }}</div>
                 <div class="flex flex-1 relative bg-transparent min-w-75 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/30 transition-colors">
                   <div class="absolute inset-0 flex pointer-events-none">
                     <div v-for="(_, idx) in chartDates" :key="idx" class="flex-1 min-w-5 border-r border-slate-100/50 dark:border-slate-800/30"></div>
@@ -438,8 +431,8 @@ onMounted(() => {
                       @mousemove="handleMouseMove($event, task)" @mouseleave="handleMouseLeave">
                     </div>
                   </div>
-                  <!-- 今日欄位 overlay（疊在 bar 上方） -->
-                  <div v-if="todayColumnIndex >= 0" class="absolute inset-y-0 pointer-events-none today-col z-10"
+                  <!-- 今日欄位 overlay（疊在底层，避免影響 Bar 顯示） -->
+                  <div v-if="todayColumnIndex >= 0" class="absolute inset-y-0 pointer-events-none today-col z-0"
                     :style="{ left: `${(todayColumnIndex / totalDays) * 100}%`, width: `${(1 / totalDays) * 100}%` }">
                   </div>
                 </div>
