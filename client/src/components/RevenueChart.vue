@@ -73,7 +73,7 @@ const growthRate   = computed(() => {
 // ── 2. 主題色彩 ─────────────────────────────────────────────────────────────
 const VIOLET = '#8b5cf6'
 const AMBER  = '#f59e0b'
-const INDIGO = '#6366f1'
+const CYAN   = '#06b6d4'
 
 function tickColor() { return isDark.value ? '#64748b' : '#94a3b8' }
 const monoFont = "'JetBrains Mono', 'Roboto Mono', monospace"
@@ -173,11 +173,11 @@ function buildConfig() {
         {
           label: '總額',
           data: chartData.value.map(d => d.total),
-          borderColor: INDIGO,
+          borderColor: CYAN,
           backgroundColor: (ctx) => {
             const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300)
-            g.addColorStop(0, 'rgba(99, 102, 241, 0.18)')
-            g.addColorStop(1, 'rgba(99, 102, 241, 0)')
+            g.addColorStop(0, 'rgba(6, 182, 212, 0.18)')
+            g.addColorStop(1, 'rgba(6, 182, 212, 0)')
             return g
           },
           tension: 0.45,
@@ -186,7 +186,7 @@ function buildConfig() {
           pointRadius: 0,
           pointHoverRadius: 6,
           pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: INDIGO,
+          pointHoverBorderColor: CYAN,
           pointHoverBorderWidth: 2.5,
         }
       ]
