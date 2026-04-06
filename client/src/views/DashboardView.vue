@@ -350,8 +350,8 @@ onMounted(() => {
               <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300">運費</span>
             </div>
             <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5">
-              <svg width="14" height="6" viewBox="0 0 14 6"><line x1="0" y1="3" x2="14" y2="3" stroke="#6366f1" stroke-width="2.5"/></svg>
-              <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300">總額</span>
+              <svg width="14" height="6" viewBox="0 0 14 6"><line x1="0" y1="3" x2="14" y2="3" stroke="#06b6d4" stroke-width="2.5"/></svg>
+              <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300">合計</span>
             </div>
           </div>
         </div>

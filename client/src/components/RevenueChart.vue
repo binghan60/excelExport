@@ -86,8 +86,9 @@ let tooltipEl   = null
 function externalTooltip({ chart, tooltip }) {
   if (!tooltipEl) {
     tooltipEl = document.createElement('div')
-    tooltipEl.style.cssText = 'position:absolute;pointer-events:none;transition:all .2s ease;z-index:50;'
-    chart.canvas.parentNode.appendChild(tooltipEl)
+    // 使用 position: fixed 避免被容器的 overflow-hidden 遮擋
+    tooltipEl.style.cssText = 'position:fixed;pointer-events:none;transition:all .1s ease;z-index:9999;'
+    document.body.appendChild(tooltipEl)
   }
 
   if (tooltip.opacity === 0) {
@@ -118,7 +119,7 @@ function externalTooltip({ chart, tooltip }) {
           </div>
           <div class="h-px bg-white/10 my-1"></div>
           <div class="flex justify-between items-center pt-1">
-            <span class="text-[10px] font-black text-violet-400 uppercase">合計</span>
+            <span class="text-[10px] font-black text-cyan-400 uppercase">合計</span>
             <span class="text-lg font-black text-white font-mono-num">${d.total.toLocaleString()}</span>
           </div>
         </div>
@@ -127,9 +128,21 @@ function externalTooltip({ chart, tooltip }) {
   }
 
   tooltipEl.style.opacity = '1'
-  const left = tooltip.caretX + 20
-  const top = tooltip.caretY - 20
-  tooltipEl.style.left = left + (left + 200 > chart.width ? -220 : 0) + 'px'
+  
+  // 計算相對於 viewport 的位置
+  const rect = chart.canvas.getBoundingClientRect()
+  const x = rect.left + tooltip.caretX
+  const y = rect.top + tooltip.caretY
+  
+  let left = x + 20
+  const top = y - 20
+  
+  // 邊界檢查：避免超出螢幕右側
+  if (left + 220 > window.innerWidth) {
+    left = x - 220
+  }
+  
+  tooltipEl.style.left = left + 'px'
   tooltipEl.style.top = top + 'px'
 }
 
@@ -149,11 +162,15 @@ function buildConfig() {
           tension: 0.45,
           borderWidth: 2,
           fill: true,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: '#fff',
+          // 數據點樣式：完全實色
+          pointRadius: 4,
+          pointBackgroundColor: VIOLET,
+          pointBorderColor: VIOLET,
+          pointBorderWidth: 1,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: VIOLET,
           pointHoverBorderColor: VIOLET,
-          pointHoverBorderWidth: 2,
+          pointHoverBorderWidth: 1,
         },
         {
           label: '運費',
@@ -164,14 +181,18 @@ function buildConfig() {
           tension: 0.45,
           borderWidth: 2,
           fill: true,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: '#fff',
+          // 數據點樣式：完全實色
+          pointRadius: 4,
+          pointBackgroundColor: AMBER,
+          pointBorderColor: AMBER,
+          pointBorderWidth: 1,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: AMBER,
           pointHoverBorderColor: AMBER,
-          pointHoverBorderWidth: 2,
+          pointHoverBorderWidth: 1,
         },
         {
-          label: '總額',
+          label: '合計',
           data: chartData.value.map(d => d.total),
           borderColor: CYAN,
           backgroundColor: (ctx) => {
@@ -183,11 +204,15 @@ function buildConfig() {
           tension: 0.45,
           borderWidth: 2.5,
           fill: true,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#fff',
+          // 數據點樣式：完全實色
+          pointRadius: 5,
+          pointBackgroundColor: CYAN,
+          pointBorderColor: CYAN,
+          pointBorderWidth: 1,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: CYAN,
           pointHoverBorderColor: CYAN,
-          pointHoverBorderWidth: 2.5,
+          pointHoverBorderWidth: 1,
         }
       ]
     },
@@ -206,7 +231,10 @@ function buildConfig() {
           ticks: { color: tickColor(), font: { size: 12, weight: '600' } }
         },
         y: {
-          grid: { color: isDark.value ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', drawBorder: false },
+          grid: { 
+            color: isDark.value ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', 
+            drawBorder: false 
+          },
           border: { display: false, dash: [4, 4] },
           ticks: { 
             color: tickColor(), 
@@ -219,14 +247,16 @@ function buildConfig() {
     }
   }
 }
-
 onMounted(() => {
   chartInst = new Chart(canvasRef.value, buildConfig())
 })
 
 onUnmounted(() => {
   chartInst?.destroy()
-  tooltipEl?.remove()
+  if (tooltipEl) {
+    tooltipEl.remove()
+    tooltipEl = null
+  }
 })
 
 watch(chartData, () => {
