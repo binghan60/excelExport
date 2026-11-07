@@ -226,7 +226,7 @@ async function save() {
       {{ serverError }}
     </div>
     <!-- 基本資料 -->
-    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)] transition-all duration-300">
+    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden shadow-sm transition-all duration-300">
       <div class="px-6 py-4 border-b border-slate-100/80 dark:border-slate-700/60">
         <h3 class="text-base font-semibold text-slate-700 dark:text-slate-200">基本資料</h3>
       </div>
@@ -276,7 +276,7 @@ async function save() {
     </section>
 
     <!-- 明細列表 -->
-    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)] transition-all duration-300">
+    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden shadow-sm transition-all duration-300">
       <div class="px-6 py-4 border-b border-slate-100/80 dark:border-slate-700/60 flex items-center justify-between">
         <h3 class="text-base font-semibold text-slate-700 dark:text-slate-200">租賃明細</h3>
         <span class="text-xs font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded border border-blue-100 dark:border-blue-900">共 {{ form.rows.length }} 行</span>
@@ -409,7 +409,7 @@ async function save() {
       </div>
 
       <!-- 結算區 -->
-      <div class="sticky bottom-0 z-10 px-8 py-5 backdrop-blur-md bg-white/95 dark:bg-slate-900/95 flex items-end justify-between gap-6 border-t border-slate-200 dark:border-slate-700 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)]">
+      <div class="sticky bottom-0 z-10 px-8 py-5 backdrop-blur-md bg-white/95 dark:bg-slate-900/95 flex items-end justify-between gap-6 border-t border-slate-200 dark:border-slate-700 shadow-sm">
         <!-- 送出按鈕 -->
         <AppButton variant="primary" size="lg" :loading="saving" @click="save">
           <template #icon>

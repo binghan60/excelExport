@@ -94,11 +94,11 @@ function rowSubtotal(f) {
       <div
         v-for="f in filteredFreights"
         :key="f.id"
-        class="group bg-white dark:bg-slate-900 border rounded-2xl transition-all duration-300 ease-out shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)]"
+        class="group bg-white dark:bg-slate-900 border rounded-2xl transition-all duration-300 ease-out shadow-sm"
         :class="[
           f._pending ? 'opacity-60 pointer-events-none' : '',
           expandedId === f.id
-            ? 'overflow-clip border-amber-400/70 dark:border-amber-600/70 ring-4 ring-amber-50 dark:ring-amber-950/40 shadow-[0_4px_16px_0_rgba(217,119,6,0.08)]'
+            ? 'overflow-clip border-amber-400/70 dark:border-amber-600/70 ring-4 ring-amber-50 dark:ring-amber-950/40 shadow-sm'
             : 'overflow-hidden border-slate-200/60 dark:border-slate-700/60 hover:border-amber-300/70 dark:hover:border-amber-700/70 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'
         ]"
       >

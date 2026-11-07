@@ -15,6 +15,11 @@ const app = express()
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }))
 app.use(express.json())
 
+// 模擬延遲以便觀察 Loading 動畫
+app.use((req, res, next) => {
+  setTimeout(next, 1000)
+})
+
 app.use('/api/rentals',   rentalRouter)
 app.use('/api/freight',   freightRouter)
 app.use('/api/inventory', inventoryRouter)

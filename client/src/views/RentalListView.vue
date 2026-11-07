@@ -106,10 +106,10 @@ function fmt(n) { return n ? n.toLocaleString() : '0' }
 
     <div v-else class="space-y-3">
       <div v-for="inv in filteredRentals" :key="inv.id"
-        class="group bg-white dark:bg-slate-900 border rounded-2xl transition-all duration-300 ease-out shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)]"
+        class="group bg-white dark:bg-slate-900 border rounded-2xl transition-all duration-300 ease-out shadow-sm"
         :class="[
           inv._pending ? 'opacity-60 pointer-events-none' : '',
-          expandedId === inv.id ? 'overflow-clip border-blue-400/70 dark:border-blue-600/70 ring-4 ring-blue-50 dark:ring-blue-950/50 shadow-[0_4px_16px_0_rgba(37,99,235,0.08)]' : 'overflow-hidden border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300/80 dark:hover:border-slate-600/80 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'
+          expandedId === inv.id ? 'overflow-clip border-blue-400/70 dark:border-blue-600/70 ring-4 ring-blue-50 dark:ring-blue-950/50 shadow-sm' : 'overflow-hidden border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300/80 dark:hover:border-slate-600/80 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'
         ]"
       >
         <!-- 簡項視圖 -->

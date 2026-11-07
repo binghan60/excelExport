@@ -299,11 +299,11 @@ watch(isDark, () => {
       </div>
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5">
-          <div class="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]"></div>
+          <div class="w-2 h-2 rounded-full bg-violet-500 "></div>
           <span class="text-xs font-bold text-slate-600 dark:text-slate-300">租賃</span>
         </div>
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5">
-          <div class="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div>
+          <div class="w-2 h-2 rounded-full bg-amber-500 "></div>
           <span class="text-xs font-bold text-slate-600 dark:text-slate-300">運費</span>
         </div>
       </div>

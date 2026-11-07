@@ -3,33 +3,105 @@
 
 @theme {
   --font-mono-num: "JetBrains Mono", "Roboto Mono", ui-monospace, monospace;
+
+  /* ── shadcn 風格：slate 色階改為 zinc 中性灰 ── */
+  --color-slate-50:  #fafafa;
+  --color-slate-100: #f4f4f5;
+  --color-slate-200: #e4e4e7;
+  --color-slate-300: #d4d4d8;
+  --color-slate-400: #a1a1aa;
+  --color-slate-500: #71717a;
+  --color-slate-600: #52525b;
+  --color-slate-700: #3f3f46;
+  --color-slate-800: #27272a;
+  --color-slate-900: #18181b;
+  --color-slate-950: #09090b;
+
+  /* ── 圓角：shadcn 預設 --radius: 0.5rem ── */
+  --radius-lg:  0.375rem;
+  --radius-xl:  0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.75rem;
+
+  /* ── 陰影：幾乎扁平，只留極淡的 shadow-xs/sm ── */
+  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md:  0 2px 4px -1px rgb(0 0 0 / 0.06);
+  --shadow-lg:  0 4px 8px -2px rgb(0 0 0 / 0.08);
+  --shadow-xl:  0 8px 16px -4px rgb(0 0 0 / 0.08);
+  --shadow-2xl: 0 12px 24px -6px rgb(0 0 0 / 0.12);
 }
 
 :root {
-  --shadow-card: 0 1px 3px 0 rgba(0,0,0,0.02), 0 1px 2px 1px rgba(0,0,0,0.03);
-  --shadow-card-hover: 0 4px 12px 0 rgba(0,0,0,0.04), 0 1px_3px 0 rgba(0,0,0,0.03);
-  --shadow-blue: 0 1px 4px 0 rgba(37,99,235,0.22), 0 0 0 0 transparent;
-  --shadow-blue-hover: 0 2px 10px 0 rgba(37,99,235,0.35);
+  /* shadcn design tokens (light) */
+  --background: #ffffff;
+  --foreground: #09090b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --ring: #a1a1aa;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-card-hover: 0 1px 2px 0 rgb(0 0 0 / 0.04);
 }
 
-/* ── SaaS 精緻卡片陰影工具類 ── */
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --border: #27272a;
+  --ring: #52525b;
+  --primary: #fafafa;
+  --primary-foreground: #18181b;
+}
+
+/* ── 卡片陰影工具類（扁平） ── */
 .shadow-card { box-shadow: var(--shadow-card); }
 .shadow-card-hover:hover { box-shadow: var(--shadow-card-hover); }
 
 * {
   box-sizing: border-box;
+  border-color: var(--border);
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: #f8fafc;
-  color: #1e293b;
+  background-color: var(--background);
+  color: var(--foreground);
   font-size: 16px;
   font-family: ui-sans-serif, system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
+
+/* shadcn 風格焦點環 */
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Tailwind 4 preflight 把 button 游標改成 default，這裡補回 pointer */
+button:not(:disabled),
+[role="button"],
+a[href],
+summary,
+select,
+label[for],
+input[type="checkbox"],
+input[type="radio"],
+input[type="date"],
+input[type="month"] {
+  cursor: pointer;
+}
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* 去除全站毛玻璃，保持乾淨 */
+.backdrop-blur-md, .backdrop-blur-sm, .backdrop-blur-xl { backdrop-filter: none !important; }
 
 .font-mono-num {
   font-family: var(--font-mono-num);
@@ -38,51 +110,51 @@ body {
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #d4d4d8; }
 
-.dark ::-webkit-scrollbar-thumb { background: #334155; }
-.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+.dark ::-webkit-scrollbar-thumb { background: #27272a; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
 /* ── dhtmlx-gantt 亮色主題樣式覆寫 ── */
 .gantt_task_line { border: none !important; border-radius: 6px !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; }
 .gantt_task_content { font-size: 13px !important; font-weight: 700 !important; }
-.gantt_grid_head_cell { font-size: 12px !important; font-weight: 600 !important; color: #94a3b8 !important; text-transform: uppercase !important; background: #f8fafc !important; border-right: 1px solid #f1f5f9 !important; }
-.gantt_scale_cell { font-weight: 600 !important; color: #64748b !important; font-size: 12px !important; }
-.gantt_grid_data .gantt_row { border-bottom: 1px solid #f1f5f9 !important; height: 45px !important; line-height: 45px !important; }
+.gantt_grid_head_cell { font-size: 12px !important; font-weight: 600 !important; color: #a1a1aa !important; text-transform: uppercase !important; background: #fafafa !important; border-right: 1px solid #f4f4f5 !important; }
+.gantt_scale_cell { font-weight: 600 !important; color: #71717a !important; font-size: 12px !important; }
+.gantt_grid_data .gantt_row { border-bottom: 1px solid #f4f4f5 !important; height: 45px !important; line-height: 45px !important; }
 
 /* ── dhtmlx-gantt 暗色主題（直接覆寫 class，確保優先於 scoped !important）── */
 .dark .gantt_container,
-.dark .gantt_layout_cell { background: #1e293b !important; border-color: #334155 !important; }
-.dark .gantt_grid_head_cell { background: #0f172a !important; color: #64748b !important; border-right-color: #334155 !important; border-bottom-color: #334155 !important; }
-.dark .gantt_grid_data .gantt_row { background: #1e293b !important; border-bottom-color: #334155 !important; color: #cbd5e1 !important; }
-.dark .gantt_grid_data .gantt_row.odd { background: #1a2540 !important; }
-.dark .gantt_grid_data .gantt_row:hover { background: #334155 !important; }
-.dark .gantt_cell { color: #cbd5e1 !important; border-right-color: #334155 !important; }
-.dark .gantt_task_bg { background: #1e293b !important; }
-.dark .gantt_task_row { background: #1e293b !important; border-bottom-color: #334155 !important; }
-.dark .gantt_task_row.odd { background: #1a2540 !important; }
+.dark .gantt_layout_cell { background: #18181b !important; border-color: #27272a !important; }
+.dark .gantt_grid_head_cell { background: #09090b !important; color: #71717a !important; border-right-color: #27272a !important; border-bottom-color: #27272a !important; }
+.dark .gantt_grid_data .gantt_row { background: #18181b !important; border-bottom-color: #27272a !important; color: #d4d4d8 !important; }
+.dark .gantt_grid_data .gantt_row.odd { background: #1f1f23 !important; }
+.dark .gantt_grid_data .gantt_row:hover { background: #27272a !important; }
+.dark .gantt_cell { color: #d4d4d8 !important; border-right-color: #27272a !important; }
+.dark .gantt_task_bg { background: #18181b !important; }
+.dark .gantt_task_row { background: #18181b !important; border-bottom-color: #27272a !important; }
+.dark .gantt_task_row.odd { background: #1f1f23 !important; }
 html.dark .gantt_container,
 html.dark .gantt_layout_cell,
 html.dark .gantt_layout_content,
 html.dark .gantt_task,
 html.dark .gantt_task_bg,
 html.dark .gantt_task_row,
-html.dark .gantt_task_row.odd { background: #1e293b !important; }
+html.dark .gantt_task_row.odd { background: #18181b !important; }
 
 html.dark .gantt_task_scale,
 html.dark .gantt_scale_row,
-html.dark .gantt_scale_cell { background: #0f172a !important; border-color: #334155 !important; color: #64748b !important; }
+html.dark .gantt_scale_cell { background: #09090b !important; border-color: #27272a !important; color: #71717a !important; }
 
-html.dark .gantt_grid_head_cell { background: #0f172a !important; color: #64748b !important; border-color: #334155 !important; }
+html.dark .gantt_grid_head_cell { background: #09090b !important; color: #71717a !important; border-color: #27272a !important; }
 html.dark .gantt_grid_data .gantt_row,
-html.dark .gantt_grid_data .gantt_row.odd { background: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
-html.dark .gantt_grid_data .gantt_row:hover { background: #334155 !important; }
-html.dark .gantt_cell { color: #cbd5e1 !important; border-color: #334155 !important; }
+html.dark .gantt_grid_data .gantt_row.odd { background: #18181b !important; border-color: #27272a !important; color: #d4d4d8 !important; }
+html.dark .gantt_grid_data .gantt_row:hover { background: #27272a !important; }
+html.dark .gantt_cell { color: #d4d4d8 !important; border-color: #27272a !important; }
 
 html.dark .gantt_resizer,
 html.dark .gantt_grid_column_resize_wrap,
 html.dark .gantt_hor_scroll,
-html.dark .gantt_ver_scroll { background: #1e293b !important; border-color: #334155 !important; }
+html.dark .gantt_ver_scroll { background: #18181b !important; border-color: #27272a !important; }
 
-html.dark .gantt_tooltip { background: #1e293b !important; color: #e2e8f0 !important; border-color: #334155 !important; }
+html.dark .gantt_tooltip { background: #18181b !important; color: #e4e4e7 !important; border-color: #27272a !important; }

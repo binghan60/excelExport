@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { api } from '../api/index.js'
 import { useRentalsStore } from '../stores/rentals.js'
 import { useAdminStore } from '../stores/admin.js'
 import AppButton from '../components/base/AppButton.vue'
@@ -100,6 +101,9 @@ async function exportSummary(groupArg) {
     previewGroup.value = null // 若從預覽進入，完成後關閉
   } catch (e) {
     errorMap.value[key] = e.message
+    // 錯誤訊息顯示在展開區，卡片收合時使用者看不到，因此自動展開並關閉預覽
+    openClients.value = new Set(openClients.value).add(key)
+    previewGroup.value = null
   } finally {
     exportingSet.value.delete(key)
     exportingSet.value = new Set(exportingSet.value)
@@ -167,13 +171,13 @@ function fmt(num) {
       <div
         v-for="group in clientGroups"
         :key="group.client_name"
-        class="bg-white dark:bg-slate-900 border rounded-2xl overflow-hidden transition-all duration-300 ease-out shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_1px_rgba(0,0,0,0.03)]"
+        class="bg-white dark:bg-slate-900 border rounded-2xl transition-all duration-300 ease-out shadow-sm"
         :class="openClients.has(group.client_name)
-          ? 'border-violet-400/70 dark:border-violet-600/70 ring-4 ring-violet-50 dark:ring-violet-950/50 shadow-[0_4px_16px_0_rgba(124,58,237,0.08)]'
+          ? 'border-violet-400/70 dark:border-violet-600/70 ring-4 ring-violet-50 dark:ring-violet-950/50 shadow-sm'
           : 'border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300/80 dark:hover:border-slate-600/80 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.04)]'"
       >
         <!-- 手風琴標題 -->
-        <div class="flex flex-col md:flex-row items-center justify-between px-6 py-4 cursor-pointer gap-4 transition-colors duration-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 select-none" @click="toggle(group.client_name)">
+        <div class="flex flex-col md:flex-row items-center justify-between px-6 py-4 cursor-pointer gap-4 rounded-2xl transition-colors duration-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 select-none" @click="toggle(group.client_name)">
           <div class="flex items-center gap-4 flex-1">
             <div class="w-9 h-9 rounded-xl flex items-center justify-center transition-colors shrink-0"
               :class="openClients.has(group.client_name)

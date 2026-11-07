@@ -26,7 +26,7 @@ defineProps({
         :style="{ left: `${x + 20}px`, top: `${y + 20}px` }"
       >
         <!-- 主體容器：恢復平衡大小 -->
-        <div class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border border-slate-200/50 dark:border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] p-5 min-w-[260px] text-slate-900 dark:text-white overflow-hidden relative transition-colors duration-300">
+        <div class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border border-slate-200/50 dark:border-white/10 rounded-2xl shadow-sm dark:shadow-sm p-5 min-w-[260px] text-slate-900 dark:text-white overflow-hidden relative transition-colors duration-300">
           
           <!-- 裝飾背景光暈 -->
           <div class="absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-10 dark:opacity-20 transition-opacity" :style="{ backgroundColor: content.color || '#6366f1' }"></div>

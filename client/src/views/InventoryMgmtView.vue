@@ -256,10 +256,10 @@ function fmtDate(d) {
         class="h-10 px-5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out select-none cursor-pointer"
         :class="activeTab === tab.key
           ? tab.key === 'equipment'
-            ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-[0_1px_4px_0_rgba(0,0,0,0.08)]'
+            ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
             : tab.key === 'customers'
-              ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-[0_1px_4px_0_rgba(0,0,0,0.08)]'
-              : 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-[0_1px_4px_0_rgba(0,0,0,0.08)]'
+              ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+              : 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm'
           : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
       >
         {{ tab.label }}
@@ -294,14 +294,14 @@ function fmtDate(d) {
                     <div class="flex items-center justify-end gap-2">
                       <span v-if="rowEdits[s.id]?.success" class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{{ rowEdits[s.id].success }}</span>
                       <button @click="toggleRow(s.id)"
-                        class="h-9 px-4 rounded-xl border font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]"
+                        class="h-9 px-4 rounded-xl border font-semibold text-xs transition-all duration-300 ease-out "
                         :class="rowEdits[s.id]?.open
                           ? 'border-red-200/80 dark:border-red-800/80 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40'
                           : 'border-slate-200/60 dark:border-slate-600/60 text-slate-500 dark:text-slate-400 hover:border-emerald-400/60 hover:text-emerald-600 hover:bg-emerald-50/50'">
                         {{ rowEdits[s.id]?.open ? '取消' : '異動數量' }}
                       </button>
                       <button @click="openDeleteConfirm('equipment', s)"
-                        class="h-9 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/60 text-slate-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]">
+                        class="h-9 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/60 text-slate-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs transition-all duration-300 ease-out ">
                         刪除
                       </button>
                     </div>
@@ -424,7 +424,7 @@ function fmtDate(d) {
                 <td class="px-6 py-4 text-right">
                   <button
                     @click="openDeleteConfirm('customer', c)"
-                    class="h-9 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/60 text-slate-400 dark:text-slate-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]"
+                    class="h-9 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/60 text-slate-400 dark:text-slate-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs transition-all duration-300 ease-out "
                   >
                     刪除
                   </button>
@@ -477,7 +477,7 @@ function fmtDate(d) {
                 <td class="px-6 py-4 text-right">
                   <button
                     @click="openDeleteConfirm('site', s)"
-                    class="h-9 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/60 text-slate-400 dark:text-slate-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs transition-all duration-300 ease-out active:scale-[0.97]"
+                    class="h-9 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/60 text-slate-400 dark:text-slate-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs transition-all duration-300 ease-out "
                   >
                     刪除
                   </button>
@@ -511,7 +511,7 @@ function fmtDate(d) {
   <!-- ══ Modal：新增設備 ══ -->
   <Teleport to="body">
       <div v-if="showEquipModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" @click.self="closeEquipModal">
-          <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_60px_0_rgba(0,0,0,0.15)] border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+          <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
             <!-- Modal Header -->
             <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
               <div class="flex items-center gap-2.5">
@@ -576,7 +576,7 @@ function fmtDate(d) {
   <!-- ══ Modal：新增客戶 ══ -->
   <Teleport to="body">
       <div v-if="showCustomerModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" @click.self="closeCustomerModal">
-          <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_60px_0_rgba(0,0,0,0.15)] border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+          <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
             <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
               <div class="flex items-center gap-2.5">
                 <span class="w-1 h-4 bg-blue-500 rounded-full"></span>
@@ -620,7 +620,7 @@ function fmtDate(d) {
   <!-- ══ Modal：新增工地 ══ -->
   <Teleport to="body">
       <div v-if="showSiteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" @click.self="closeSiteModal">
-          <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_60px_0_rgba(0,0,0,0.15)] border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+          <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
             <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
               <div class="flex items-center gap-2.5">
                 <span class="w-1 h-4 bg-amber-500 rounded-full"></span>
